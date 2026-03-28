@@ -1,5 +1,5 @@
-package src.main.java.com.playforgemanager.core;
+package com.playforgemanager.core;
 
-public class MatchEngine {
-    
+public interface MatchEngine {
+    void simulate(Match match, Ruleset ruleset);
 }
