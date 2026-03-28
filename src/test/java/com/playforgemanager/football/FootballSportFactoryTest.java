@@ -9,11 +9,12 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FootballSportFactoryTest {
 
     @Test
-    void createLeagueBuildsExpectedBootstrapLeagueAndTeams() {
+    void createLeagueBuildsBootstrapLeagueWithExpectedNumberOfTeams() {
         FootballSportFactory factory = new FootballSportFactory(new FakeAssetProvider(), 4);
 
         League league = factory.createLeague("Bootstrap League");
@@ -22,6 +23,17 @@ class FootballSportFactoryTest {
         assertEquals("Bootstrap League", league.getName());
         assertEquals(4, league.getTeamCount());
         assertEquals("Red Hawks", league.getTeams().get(0).getName());
+    }
+
+    @Test
+    void createLeaguePopulatesEachTeamWithPlayers() {
+        FootballSportFactory factory = new FootballSportFactory(new FakeAssetProvider(), 4);
+
+        League league = factory.createLeague("Bootstrap League");
+
+        for (int i = 0; i < league.getTeams().size(); i++) {
+            assertEquals(18, league.getTeams().get(i).getRoster().size());
+        }
     }
 
     @Test
@@ -36,15 +48,22 @@ class FootballSportFactoryTest {
         assertEquals(1, season.getCurrentWeek());
     }
 
+    @Test
+    void constructorRejectsTeamCountSmallerThanTwo() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new FootballSportFactory(new FakeAssetProvider(), 1)
+        );
+    }
+
     private static class FakeAssetProvider implements AssetProvider {
         @Override
         public List<String> getMaleNames() {
-            return List.of("Ali", "Mert");
+            return List.of("Ali", "Mert", "Can", "Emir");
         }
 
         @Override
         public List<String> getFemaleNames() {
-            return List.of("Ece", "Zeynep");
+            return List.of("Ece", "Zeynep", "Defne", "Elif");
         }
 
         @Override

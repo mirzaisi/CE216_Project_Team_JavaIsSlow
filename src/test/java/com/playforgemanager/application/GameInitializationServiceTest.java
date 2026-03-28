@@ -10,26 +10,48 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GameInitializationServiceTest {
 
     @Test
-    void startNewSessionCreatesAttachedWorldThroughAbstractions() {
+    void startNewSessionCreatesSessionWithExpectedAttachedObjects() {
         AssetProvider assetProvider = new FakeAssetProvider();
         SportFactory sportFactory = new FootballSportFactory(assetProvider, 4);
         GameInitializationService service = new GameInitializationService(sportFactory);
 
         GameSession session = service.startNewSession("Starter League");
 
-        assertNotNull(session.getActiveSport());
-        assertNotNull(session.getCurrentSeason());
-        assertNotNull(session.getControlledTeam());
         assertEquals("Football", session.getActiveSport().getName());
         assertEquals("Starter League", session.getCurrentSeason().getLeague().getName());
         assertEquals("Red Hawks", session.getControlledTeam().getName());
         assertEquals(4, session.getCurrentSeason().getLeague().getTeamCount());
         assertEquals(ProgressionState.READY_TO_START, session.getProgressionState());
+    }
+
+    @Test
+    void startNewSessionUsesFirstGeneratedTeamAsControlledTeam() {
+        AssetProvider assetProvider = new FakeAssetProvider();
+        SportFactory sportFactory = new FootballSportFactory(assetProvider, 4);
+        GameInitializationService service = new GameInitializationService(sportFactory);
+
+        GameSession session = service.startNewSession("Starter League");
+
+        assertEquals(
+                session.getCurrentSeason().getLeague().getTeams().get(0),
+                session.getControlledTeam()
+        );
+    }
+
+    @Test
+    void startNewSessionRejectsBlankLeagueName() {
+        AssetProvider assetProvider = new FakeAssetProvider();
+        SportFactory sportFactory = new FootballSportFactory(assetProvider, 4);
+        GameInitializationService service = new GameInitializationService(sportFactory);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.startNewSession("   ")
+        );
     }
 
     private static class FakeAssetProvider implements AssetProvider {
