@@ -1,5 +1,10 @@
-package src.main.java.com.playforgemanager.core;
+package com.playforgemanager.core;
 
-public class AssetProvider {
-    
+import java.util.List;
+
+public interface AssetProvider {
+    List<String> getMaleNames();
+    List<String> getFemaleNames();
+    List<String> getTeamNames();
+    List<String> getLogoReferences();
 }
