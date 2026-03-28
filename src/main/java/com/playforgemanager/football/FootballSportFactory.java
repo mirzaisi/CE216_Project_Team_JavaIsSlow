@@ -6,6 +6,7 @@ import com.playforgemanager.core.Season;
 import com.playforgemanager.core.Sport;
 import com.playforgemanager.core.SportFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -47,16 +48,14 @@ public class FootballSportFactory implements SportFactory {
         }
 
         for (int i = 0; i < initialTeamCount; i++) {
-            String teamName = teamNames.get(i);
-
-            if (teamName == null || teamName.isBlank()) {
-                throw new IllegalStateException("Team name cannot be blank.");
-            }
-
-            league.addTeam(new BootstrapFootballTeam(
+            BootstrapFootballTeam team = new BootstrapFootballTeam(
                     "football-team-" + (i + 1),
-                    teamName
-            ));
+                    teamNames.get(i)
+            );
+
+            populatePlayers(team, i);
+            populateCoach(team, i);
+            league.addTeam(team);
         }
 
         return league;
@@ -65,5 +64,43 @@ public class FootballSportFactory implements SportFactory {
     @Override
     public Season createSeason(League league) {
         return new BootstrapFootballSeason(league);
+    }
+
+    private void populatePlayers(BootstrapFootballTeam team, int teamIndex) {
+        List<String> names = new ArrayList<>();
+        names.addAll(assetProvider.getMaleNames());
+        names.addAll(assetProvider.getFemaleNames());
+
+        if (names.isEmpty()) {
+            throw new IllegalStateException("Asset provider must supply player names.");
+        }
+
+        for (int i = 0; i < 18; i++) {
+            String baseName = names.get((teamIndex * 18 + i) % names.size());
+            String playerName = baseName + " " + (i + 1);
+
+            team.addPlayer(new BootstrapFootballPlayer(
+                    "football-player-" + (teamIndex + 1) + "-" + (i + 1),
+                    playerName
+            ));
+        }
+    }
+
+    private void populateCoach(BootstrapFootballTeam team, int teamIndex) {
+        List<String> names = new ArrayList<>();
+        names.addAll(assetProvider.getMaleNames());
+        names.addAll(assetProvider.getFemaleNames());
+
+        if (names.isEmpty()) {
+            throw new IllegalStateException("Asset provider must supply coach names.");
+        }
+
+        String coachName = names.get(teamIndex % names.size()) + " Coach";
+
+        team.addCoach(new BootstrapFootballCoach(
+                "football-coach-" + (teamIndex + 1),
+                coachName,
+                "Head Coach"
+        ));
     }
 }

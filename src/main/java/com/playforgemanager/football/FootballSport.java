@@ -15,6 +15,7 @@ import com.playforgemanager.core.Team;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 
 public class FootballSport implements Sport {
     private final Ruleset ruleset;
@@ -25,7 +26,7 @@ public class FootballSport implements Sport {
 
     public FootballSport() {
         this.ruleset = new BasicFootballRuleset();
-        this.scheduler = new NoOpScheduler();
+        this.scheduler = new BootstrapFootballScheduler();
         this.standingsPolicy = new NoOpStandingsPolicy();
         this.matchEngine = new BasicFootballMatchEngine();
         this.injuryPolicy = new NoOpInjuryPolicy();
@@ -98,13 +99,6 @@ public class FootballSport implements Sport {
         }
     }
 
-    private static class NoOpScheduler implements Scheduler {
-        @Override
-        public List<com.playforgemanager.core.Fixture> generateFixtures(List<? extends Team> teams) {
-            return List.of();
-        }
-    }
-
     private static class NoOpStandingsPolicy implements StandingsPolicy {
         @Override
         public void recordMatch(League league, Match match) {
@@ -125,9 +119,25 @@ public class FootballSport implements Sport {
             Objects.requireNonNull(match, "Match cannot be null.");
             Objects.requireNonNull(ruleset, "Ruleset cannot be null.");
 
-            if (!match.isPlayed()) {
-                match.setResult(0, 0);
+            if (match.isPlayed()) {
+                return;
             }
+
+            if (!ruleset.isValidLineup(match.getHomeLineup()) || !ruleset.isValidLineup(match.getAwayLineup())) {
+                throw new IllegalArgumentException("Both teams must have valid lineups before simulation.");
+            }
+
+            long seed = 31L * match.getHomeTeam().getName().hashCode() + match.getAwayTeam().getName().hashCode();
+            Random random = new Random(seed);
+
+            int homeScore = random.nextInt(4);
+            int awayScore = random.nextInt(4);
+
+            if (random.nextBoolean()) {
+                homeScore = Math.min(5, homeScore + 1);
+            }
+
+            match.setResult(homeScore, awayScore);
         }
     }
 
