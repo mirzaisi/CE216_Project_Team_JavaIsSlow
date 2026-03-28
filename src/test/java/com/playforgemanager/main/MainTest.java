@@ -1,4 +1,4 @@
-﻿package com.playforgemanager.main;
+package com.playforgemanager.main;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
