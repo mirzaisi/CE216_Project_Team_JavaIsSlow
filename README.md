@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/main/resources/assets/images/playforge-logo.png" alt="PlayForge Manager Logo" width="320">
+</p>
+
 # PlayForge Manager
 
 PlayForge Manager is a Java-based sports manager game project developed for **CE 216 – Fundamental Topics in Programming**.
