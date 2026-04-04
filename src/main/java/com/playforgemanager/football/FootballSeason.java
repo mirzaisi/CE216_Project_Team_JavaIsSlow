@@ -58,6 +58,23 @@ public class FootballSeason extends Season {
         advanceWeek();
     }
 
+    public boolean canCreateNextSeason() {
+        return isCompleted();
+    }
+
+    public FootballSeason createNextSeasonStub() {
+        if (!canCreateNextSeason()) {
+            throw new IllegalStateException("Current season must be completed before creating the next one.");
+        }
+
+        FootballLeague nextLeague = new FootballLeague(getLeague().getName());
+        for (Team team : getLeague().getTeams()) {
+            nextLeague.addTeam(team);
+        }
+
+        return new FootballSeason(nextLeague);
+    }
+
     @Override
     protected void doAdvanceWeek() {
         int lastScheduledWeek = getLeague().getFixtures().stream()
