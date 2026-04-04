@@ -1,7 +1,6 @@
 package com.playforgemanager.football;
 
 import com.playforgemanager.core.InjuryPolicy;
-import com.playforgemanager.core.League;
 import com.playforgemanager.core.Lineup;
 import com.playforgemanager.core.Match;
 import com.playforgemanager.core.MatchEngine;
@@ -12,8 +11,6 @@ import com.playforgemanager.core.Sport;
 import com.playforgemanager.core.StandingsPolicy;
 import com.playforgemanager.core.Team;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
@@ -26,8 +23,8 @@ public class FootballSport implements Sport {
 
     public FootballSport() {
         this.ruleset = new BasicFootballRuleset();
-        this.scheduler = new BootstrapFootballScheduler();
-        this.standingsPolicy = new NoOpStandingsPolicy();
+        this.scheduler = new RoundRobinFootballScheduler();
+        this.standingsPolicy = new FootballStandingsPolicy(ruleset);
         this.matchEngine = new BasicFootballMatchEngine();
         this.injuryPolicy = new NoOpInjuryPolicy();
     }
@@ -96,20 +93,6 @@ public class FootballSport implements Sport {
         @Override
         public boolean isValidLineup(Lineup lineup) {
             return lineup != null && lineup.size() == getStartingLineupSize();
-        }
-    }
-
-    private static class NoOpStandingsPolicy implements StandingsPolicy {
-        @Override
-        public void recordMatch(League league, Match match) {
-            Objects.requireNonNull(league, "League cannot be null.");
-            Objects.requireNonNull(match, "Match cannot be null.");
-        }
-
-        @Override
-        public List<Team> rankTeams(League league) {
-            Objects.requireNonNull(league, "League cannot be null.");
-            return new ArrayList<>(league.getTeams());
         }
     }
 

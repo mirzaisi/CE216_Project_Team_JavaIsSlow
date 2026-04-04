@@ -40,7 +40,7 @@ public class FootballSportFactory implements SportFactory {
 
     @Override
     public League createLeague(String leagueName) {
-        BootstrapFootballLeague league = new BootstrapFootballLeague(leagueName);
+        FootballLeague league = new FootballLeague(leagueName);
 
         List<String> teamNames = assetProvider.getTeamNames();
         if (teamNames == null || teamNames.size() < initialTeamCount) {
@@ -63,7 +63,7 @@ public class FootballSportFactory implements SportFactory {
 
     @Override
     public Season createSeason(League league) {
-        return new BootstrapFootballSeason(league);
+        return new FootballSeason(league);
     }
 
     private void populatePlayers(BootstrapFootballTeam team, int teamIndex) {

@@ -1,5 +1,6 @@
 package com.playforgemanager.application;
 
+import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.GameSession;
 import com.playforgemanager.core.League;
 import com.playforgemanager.core.ProgressionState;
@@ -24,6 +25,9 @@ public class GameInitializationService {
 
         Sport sport = sportFactory.createSport();
         League league = sportFactory.createLeague(leagueName);
+        for (Fixture fixture : sport.getScheduler().generateFixtures(league.getTeams())) {
+            league.addFixture(fixture);
+        }
         Season season = sportFactory.createSeason(league);
 
         if (league.getTeams().isEmpty()) {

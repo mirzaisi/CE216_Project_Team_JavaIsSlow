@@ -7,17 +7,25 @@ import com.playforgemanager.core.Match;
 import com.playforgemanager.core.Player;
 import com.playforgemanager.core.Season;
 import com.playforgemanager.core.Sport;
+import com.playforgemanager.core.StandingsPolicy;
 import com.playforgemanager.core.Tactic;
 import com.playforgemanager.core.Team;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
 
 public class FootballSeason extends Season {
+    private List<FootballStandingRow> standings;
 
     public FootballSeason(League league) {
         super(league);
+        this.standings = buildInitialStandings();
+    }
+
+    public List<FootballStandingRow> getStandings() {
+        return Collections.unmodifiableList(standings);
     }
 
     public List<Fixture> getCurrentWeekFixtures() {
@@ -32,6 +40,10 @@ public class FootballSeason extends Season {
 
         if (isCompleted()) {
             throw new IllegalStateException("Season is already completed.");
+        }
+
+        if (getLeague().getFixtures().isEmpty()) {
+            throw new IllegalStateException("Season has no scheduled fixtures.");
         }
 
         List<Fixture> currentWeekFixtures = getCurrentWeekFixtures();
@@ -53,9 +65,25 @@ public class FootballSeason extends Season {
             sport.getMatchEngine().simulate(match, sport.getRuleset());
             fixture.attachPlayedMatch(match);
             sport.getStandingsPolicy().recordMatch(getLeague(), match);
+            sport.getInjuryPolicy().applyPostMatch(match);
         }
 
+        for (Team team : getLeague().getTeams()) {
+            sport.getInjuryPolicy().recoverPlayers(team);
+        }
+
+        refreshStandings(sport.getStandingsPolicy());
         advanceWeek();
+    }
+
+    public void refreshStandings(StandingsPolicy standingsPolicy) {
+        Objects.requireNonNull(standingsPolicy, "Standings policy cannot be null.");
+
+        if (!(standingsPolicy instanceof FootballStandingsPolicy footballStandingsPolicy)) {
+            throw new IllegalArgumentException("FootballSeason requires FootballStandingsPolicy.");
+        }
+
+        this.standings = footballStandingsPolicy.calculateTable(getLeague());
     }
 
     public boolean canCreateNextSeason() {
@@ -88,6 +116,12 @@ public class FootballSeason extends Season {
         }
 
         setCurrentWeek(getCurrentWeek() + 1);
+    }
+
+    private List<FootballStandingRow> buildInitialStandings() {
+        return getLeague().getTeams().stream()
+                .map(FootballStandingRow::new)
+                .toList();
     }
 
     private void applySelectedSetup(Match match, Team homeTeam, Team awayTeam, Sport sport) {

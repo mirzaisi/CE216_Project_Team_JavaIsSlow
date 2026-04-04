@@ -19,7 +19,7 @@ class FootballSportFactoryTest {
 
         League league = factory.createLeague("Bootstrap League");
 
-        assertInstanceOf(BootstrapFootballLeague.class, league);
+        assertInstanceOf(FootballLeague.class, league);
         assertEquals("Bootstrap League", league.getName());
         assertEquals(4, league.getTeamCount());
         assertEquals("Red Hawks", league.getTeams().get(0).getName());
@@ -43,7 +43,7 @@ class FootballSportFactoryTest {
 
         Season season = factory.createSeason(league);
 
-        assertInstanceOf(BootstrapFootballSeason.class, season);
+        assertInstanceOf(FootballSeason.class, season);
         assertEquals(league, season.getLeague());
         assertEquals(1, season.getCurrentWeek());
     }
