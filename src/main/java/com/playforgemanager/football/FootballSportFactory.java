@@ -32,6 +32,8 @@ public class FootballSportFactory implements SportFactory {
             FootballPosition.FORWARD
     };
 
+    private static final int DEFAULT_SQUAD_SIZE = DEFAULT_POSITION_PATTERN.length;
+
     private final AssetProvider assetProvider;
     private final int initialTeamCount;
 
@@ -59,8 +61,12 @@ public class FootballSportFactory implements SportFactory {
 
     @Override
     public League createLeague(String leagueName) {
-        FootballLeague league = new FootballLeague(leagueName);
-        List<String> teamNames = assetProvider.getTeamNames();
+        FootballLeague league = new FootballLeague(Objects.requireNonNull(leagueName, "League name cannot be null."));
+        List<String> teamNames = collectNormalizedValues(assetProvider.getTeamNames(), "Asset provider must supply team names.");
+        if (teamNames.size() < initialTeamCount) {
+            throw new IllegalStateException("Asset provider does not supply enough team names.");
+        }
+
         FootballRuleset ruleset = new FootballRuleset();
 
         for (int i = 0; i < initialTeamCount; i++) {
@@ -70,6 +76,7 @@ public class FootballSportFactory implements SportFactory {
             configureMatchPreparation(team, i, ruleset);
             league.addTeam(team);
         }
+
         return league;
     }
 
@@ -79,39 +86,39 @@ public class FootballSportFactory implements SportFactory {
     }
 
     private void populatePlayers(FootballTeam team, int teamIndex) {
-        List<String> names = new ArrayList<>();
-        names.addAll(assetProvider.getMaleNames());
-        names.addAll(assetProvider.getFemaleNames());
+        List<String> names = collectPeopleNames();
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply player names.");
         }
-        for (int i = 0; i < DEFAULT_POSITION_PATTERN.length; i++) {
-            String baseName = names.get((teamIndex * DEFAULT_POSITION_PATTERN.length + i) % names.size());
+
+        for (int i = 0; i < DEFAULT_SQUAD_SIZE; i++) {
             FootballPosition position = DEFAULT_POSITION_PATTERN[i];
-            team.addPlayer(new FootballPlayer(
+            String baseName = names.get((teamIndex * DEFAULT_SQUAD_SIZE + i) % names.size());
+            FootballPlayer player = new FootballPlayer(
                     "football-player-" + (teamIndex + 1) + "-" + (i + 1),
                     baseName + " " + (i + 1),
                     position,
                     createAttributeProfile(position, teamIndex, i)
-            ));
+            );
+            team.addPlayer(player);
         }
     }
 
     private void populateCoach(FootballTeam team, int teamIndex) {
-        List<String> names = new ArrayList<>();
-        names.addAll(assetProvider.getMaleNames());
-        names.addAll(assetProvider.getFemaleNames());
+        List<String> names = collectPeopleNames();
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply coach names.");
         }
+
         String coachName = names.get(teamIndex % names.size()) + " Coach";
-        team.addCoach(new FootballCoach(
+        FootballCoach coach = new FootballCoach(
                 "football-coach-" + (teamIndex + 1),
                 coachName,
                 "Head Coach",
                 chooseCoachSpecialization(teamIndex),
                 70 + (teamIndex % 21)
-        ));
+        );
+        team.addCoach(coach);
     }
 
     private void configureMatchPreparation(FootballTeam team, int teamIndex, FootballRuleset ruleset) {
@@ -119,30 +126,114 @@ public class FootballSportFactory implements SportFactory {
         team.assignTrainingPlan(new FootballTrainingPlan("Balanced Development", 60, 58, 52, true));
 
         List<FootballPlayer> players = team.getFootballPlayers();
-        List<FootballPlayer> starters = players.subList(0, Math.min(ruleset.getStartingLineupSize(), players.size()));
+        List<FootballPlayer> starters = players.subList(
+                0,
+                Math.min(ruleset.getStartingLineupSize(), players.size())
+        );
+
         List<FootballPlayer> bench = players.size() > starters.size()
-                ? players.subList(starters.size(), Math.min(players.size(), starters.size() + ruleset.getBenchSize()))
+                ? players.subList(
+                starters.size(),
+                Math.min(players.size(), starters.size() + ruleset.getBenchSize())
+        )
                 : List.of();
+
         team.assignLineup(new FootballLineup(starters, bench), ruleset);
     }
 
     private FootballTactic createDefaultTactic(int teamIndex) {
         return switch (teamIndex % 4) {
-            case 0 -> new FootballTactic("Balanced Control", "4-2-3-1", FootballTactic.Mentality.BALANCED, 58, 60);
-            case 1 -> new FootballTactic("High Press", "4-3-3", FootballTactic.Mentality.ATTACKING, 74, 68);
-            case 2 -> new FootballTactic("Compact Counter", "4-4-2", FootballTactic.Mentality.DEFENSIVE, 50, 45);
-            default -> new FootballTactic("Possession Shape", "4-3-3", FootballTactic.Mentality.BALANCED, 54, 72);
+            case 0 -> new FootballTactic(
+                    "Balanced Control",
+                    "4-2-3-1",
+                    FootballTactic.Mentality.BALANCED,
+                    58,
+                    60
+            );
+            case 1 -> new FootballTactic(
+                    "High Press",
+                    "4-3-3",
+                    FootballTactic.Mentality.ATTACKING,
+                    74,
+                    68
+            );
+            case 2 -> new FootballTactic(
+                    "Compact Counter",
+                    "4-4-2",
+                    FootballTactic.Mentality.DEFENSIVE,
+                    50,
+                    45
+            );
+            default -> new FootballTactic(
+                    "Possession Shape",
+                    "4-3-3",
+                    FootballTactic.Mentality.BALANCED,
+                    54,
+                    72
+            );
         };
     }
 
     private FootballAttributeProfile createAttributeProfile(FootballPosition position, int teamIndex, int playerIndex) {
         int variance = (teamIndex * 7 + playerIndex * 3) % 11;
+
         return switch (position) {
-            case GOALKEEPER -> new FootballAttributeProfile(38 + variance, 80 + variance, 68 + variance, 62 + variance, 55 + variance);
-            case DEFENDER -> new FootballAttributeProfile(52 + variance, 78 + variance, 74 + variance, 66 + variance, 63 + variance);
-            case MIDFIELDER -> new FootballAttributeProfile(69 + variance, 67 + variance, 76 + variance, 81 + variance, 72 + variance);
-            case FORWARD -> new FootballAttributeProfile(84 + variance, 48 + variance, 73 + variance, 71 + variance, 79 + variance);
+            case GOALKEEPER -> new FootballAttributeProfile(
+                    clamp(38 + variance),
+                    clamp(80 + variance),
+                    clamp(68 + variance),
+                    clamp(62 + variance),
+                    clamp(55 + variance)
+            );
+            case DEFENDER -> new FootballAttributeProfile(
+                    clamp(52 + variance),
+                    clamp(78 + variance),
+                    clamp(74 + variance),
+                    clamp(66 + variance),
+                    clamp(63 + variance)
+            );
+            case MIDFIELDER -> new FootballAttributeProfile(
+                    clamp(69 + variance),
+                    clamp(67 + variance),
+                    clamp(76 + variance),
+                    clamp(81 + variance),
+                    clamp(72 + variance)
+            );
+            case FORWARD -> new FootballAttributeProfile(
+                    clamp(84 + variance),
+                    clamp(48 + variance),
+                    clamp(73 + variance),
+                    clamp(71 + variance),
+                    clamp(79 + variance)
+            );
         };
+    }
+
+    private List<String> collectPeopleNames() {
+        List<String> names = new ArrayList<>();
+        names.addAll(collectNormalizedValues(assetProvider.getMaleNames(), null));
+        names.addAll(collectNormalizedValues(assetProvider.getFemaleNames(), null));
+        return names;
+    }
+
+    private List<String> collectNormalizedValues(List<?> source, String emptyMessage) {
+        List<String> values = new ArrayList<>();
+        if (source != null) {
+            for (Object entry : source) {
+                if (entry != null) {
+                    String value = entry.toString().trim();
+                    if (!value.isEmpty()) {
+                        values.add(value);
+                    }
+                }
+            }
+        }
+
+        if (values.isEmpty() && emptyMessage != null) {
+            throw new IllegalStateException(emptyMessage);
+        }
+
+        return values;
     }
 
     private String chooseCoachSpecialization(int teamIndex) {
@@ -152,5 +243,9 @@ public class FootballSportFactory implements SportFactory {
             case 2 -> "Defensive Organization";
             default -> "Fitness and Conditioning";
         };
+    }
+
+    private int clamp(int value) {
+        return Math.max(0, Math.min(100, value));
     }
 }
