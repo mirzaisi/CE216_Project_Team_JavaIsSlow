@@ -3,7 +3,6 @@ package com.playforgemanager.football;
 import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.League;
 import com.playforgemanager.core.Match;
-import com.playforgemanager.core.Ruleset;
 import com.playforgemanager.core.StandingsPolicy;
 import com.playforgemanager.core.Team;
 
@@ -20,10 +19,10 @@ public class FootballStandingsPolicy implements StandingsPolicy {
                     .thenComparing(Comparator.comparingInt(FootballStandingRow::getGoalsFor).reversed())
                     .thenComparing(row -> row.getTeam().getName());
 
-    private final Ruleset ruleset;
+    private final FootballRuleset ruleset;
 
-    public FootballStandingsPolicy(Ruleset ruleset) {
-        this.ruleset = Objects.requireNonNull(ruleset, "Ruleset cannot be null.");
+    public FootballStandingsPolicy(FootballRuleset ruleset) {
+        this.ruleset = Objects.requireNonNull(ruleset, "Football ruleset cannot be null.");
     }
 
     @Override
@@ -42,14 +41,11 @@ public class FootballStandingsPolicy implements StandingsPolicy {
 
     @Override
     public List<Team> rankTeams(League league) {
-        return calculateTable(league).stream()
-                .map(FootballStandingRow::getTeam)
-                .toList();
+        return calculateTable(league).stream().map(FootballStandingRow::getTeam).toList();
     }
 
     public List<FootballStandingRow> calculateTable(League league) {
         Objects.requireNonNull(league, "League cannot be null.");
-
         Map<Team, FootballStandingRow> table = new LinkedHashMap<>();
         for (Team team : league.getTeams()) {
             table.put(team, new FootballStandingRow(team));
@@ -64,20 +60,14 @@ public class FootballStandingsPolicy implements StandingsPolicy {
             if (match == null || !match.isPlayed()) {
                 continue;
             }
-
             FootballStandingRow homeRow = table.get(match.getHomeTeam());
             FootballStandingRow awayRow = table.get(match.getAwayTeam());
-
             if (homeRow == null || awayRow == null) {
                 throw new IllegalStateException("Played fixture contains a team outside the league.");
             }
-
             homeRow.recordMatch(match.getHomeScore(), match.getAwayScore(), ruleset);
             awayRow.recordMatch(match.getAwayScore(), match.getHomeScore(), ruleset);
         }
-
-        return table.values().stream()
-                .sorted(TABLE_ORDER)
-                .toList();
+        return table.values().stream().sorted(TABLE_ORDER).toList();
     }
 }

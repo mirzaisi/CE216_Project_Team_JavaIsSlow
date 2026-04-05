@@ -15,14 +15,14 @@ import java.util.Objects;
 import java.util.Random;
 
 public class FootballSport implements Sport {
-    private final Ruleset ruleset;
+    private final FootballRuleset ruleset;
     private final Scheduler scheduler;
     private final StandingsPolicy standingsPolicy;
     private final MatchEngine matchEngine;
     private final InjuryPolicy injuryPolicy;
 
     public FootballSport() {
-        this.ruleset = new BasicFootballRuleset();
+        this.ruleset = new FootballRuleset();
         this.scheduler = new RoundRobinFootballScheduler();
         this.standingsPolicy = new FootballStandingsPolicy(ruleset);
         this.matchEngine = new BasicFootballMatchEngine();
@@ -36,6 +36,10 @@ public class FootballSport implements Sport {
 
     @Override
     public Ruleset getRuleset() {
+        return ruleset;
+    }
+
+    public FootballRuleset getFootballRuleset() {
         return ruleset;
     }
 
@@ -59,43 +63,6 @@ public class FootballSport implements Sport {
         return injuryPolicy;
     }
 
-    private static class BasicFootballRuleset implements Ruleset {
-        @Override
-        public int getWinPoints() {
-            return 3;
-        }
-
-        @Override
-        public int getDrawPoints() {
-            return 1;
-        }
-
-        @Override
-        public int getLossPoints() {
-            return 0;
-        }
-
-        @Override
-        public int getStartingLineupSize() {
-            return 11;
-        }
-
-        @Override
-        public int getBenchSize() {
-            return 7;
-        }
-
-        @Override
-        public boolean allowsUnlimitedSubstitutions() {
-            return false;
-        }
-
-        @Override
-        public boolean isValidLineup(Lineup lineup) {
-            return lineup != null && lineup.size() == getStartingLineupSize();
-        }
-    }
-
     private static class BasicFootballMatchEngine implements MatchEngine {
         @Override
         public void simulate(Match match, Ruleset ruleset) {
@@ -106,11 +73,11 @@ public class FootballSport implements Sport {
                 return;
             }
 
-            if (!ruleset.isValidLineup(match.getHomeLineup()) || !ruleset.isValidLineup(match.getAwayLineup())) {
-                throw new IllegalArgumentException("Both teams must have valid lineups before simulation.");
-            }
+            validateLineup(match.getHomeLineup(), ruleset, "home");
+            validateLineup(match.getAwayLineup(), ruleset, "away");
 
-            long seed = 31L * match.getHomeTeam().getName().hashCode() + match.getAwayTeam().getName().hashCode();
+            long seed = 31L * match.getHomeTeam().getName().hashCode()
+                    + match.getAwayTeam().getName().hashCode();
             Random random = new Random(seed);
 
             int homeScore = random.nextInt(4);
@@ -121,6 +88,21 @@ public class FootballSport implements Sport {
             }
 
             match.setResult(homeScore, awayScore);
+        }
+
+        private void validateLineup(Lineup lineup, Ruleset ruleset, String side) {
+            if (lineup == null) {
+                throw new IllegalArgumentException("The " + side + " lineup cannot be null.");
+            }
+
+            if (ruleset instanceof FootballRuleset footballRuleset) {
+                footballRuleset.validateLineupOrThrow(lineup);
+                return;
+            }
+
+            if (!ruleset.isValidLineup(lineup)) {
+                throw new IllegalArgumentException("The " + side + " lineup is invalid.");
+            }
         }
     }
 
@@ -133,6 +115,7 @@ public class FootballSport implements Sport {
         @Override
         public void recoverPlayers(Team team) {
             Objects.requireNonNull(team, "Team cannot be null.");
+
             for (Player player : team.getRoster()) {
                 if (player.getInjuryMatchesRemaining() > 0) {
                     player.recoverOneMatch();

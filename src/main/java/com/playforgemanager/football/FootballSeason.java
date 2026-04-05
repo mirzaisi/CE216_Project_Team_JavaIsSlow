@@ -41,6 +41,7 @@ public class FootballSeason extends Season {
         if (isCompleted()) {
             throw new IllegalStateException("Season is already completed.");
         }
+
         if (getLeague().getFixtures().isEmpty()) {
             throw new IllegalStateException("Season has no scheduled fixtures.");
         }
@@ -59,6 +60,7 @@ public class FootballSeason extends Season {
                     matchFactory.apply(fixture.getHomeTeam(), fixture.getAwayTeam()),
                     "Match factory cannot return null."
             );
+
             applySelectedSetup(match, fixture.getHomeTeam(), fixture.getAwayTeam(), sport);
             sport.getMatchEngine().simulate(match, sport.getRuleset());
             fixture.attachPlayedMatch(match);
@@ -76,9 +78,11 @@ public class FootballSeason extends Season {
 
     public void refreshStandings(StandingsPolicy standingsPolicy) {
         Objects.requireNonNull(standingsPolicy, "Standings policy cannot be null.");
+
         if (!(standingsPolicy instanceof FootballStandingsPolicy footballStandingsPolicy)) {
             throw new IllegalArgumentException("FootballSeason requires FootballStandingsPolicy.");
         }
+
         this.standings = footballStandingsPolicy.calculateTable(getLeague());
     }
 
@@ -95,6 +99,7 @@ public class FootballSeason extends Season {
         for (Team team : getLeague().getTeams()) {
             nextLeague.addTeam(team);
         }
+
         return new FootballSeason(nextLeague);
     }
 
@@ -109,6 +114,7 @@ public class FootballSeason extends Season {
             markCompleted();
             return;
         }
+
         setCurrentWeek(getCurrentWeek() + 1);
     }
 
@@ -124,29 +130,44 @@ public class FootballSeason extends Season {
     }
 
     private Lineup resolveLineup(Team team, Sport sport) {
+        Objects.requireNonNull(team, "Team cannot be null.");
+        Objects.requireNonNull(sport, "Sport cannot be null.");
+
         if (team.getSelectedLineup() != null) {
+            validateLineup(team.getSelectedLineup(), sport);
             return team.getSelectedLineup();
         }
 
         if (team instanceof FootballTeam footballTeam) {
-            List<FootballPlayer> starters = footballTeam.getAvailablePlayers().stream()
+            List<FootballPlayer> availablePlayers = footballTeam.getAvailablePlayers();
+
+            List<FootballPlayer> starters = availablePlayers.stream()
                     .limit(sport.getRuleset().getStartingLineupSize())
                     .toList();
+
             if (starters.size() != sport.getRuleset().getStartingLineupSize()) {
                 throw new IllegalStateException("Not enough available players for team: " + team.getName());
             }
 
             int benchSize = Math.min(
                     sport.getRuleset().getBenchSize(),
-                    Math.max(0, footballTeam.getFootballPlayers().size() - starters.size())
+                    Math.max(0, availablePlayers.size() - starters.size())
             );
-            List<FootballPlayer> bench = footballTeam.getAvailablePlayers().stream()
+
+            List<FootballPlayer> bench = availablePlayers.stream()
                     .skip(starters.size())
                     .limit(benchSize)
                     .toList();
 
             FootballLineup autoLineup = new FootballLineup(starters, bench);
-            footballTeam.assignLineup(autoLineup);
+            validateLineup(autoLineup, sport);
+
+            if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
+                footballTeam.assignLineup(autoLineup, footballRuleset);
+            } else {
+                footballTeam.assignLineup(autoLineup);
+            }
+
             return autoLineup;
         }
 
@@ -154,13 +175,28 @@ public class FootballSeason extends Season {
                 .filter(Player::isAvailable)
                 .limit(sport.getRuleset().getStartingLineupSize())
                 .toList();
+
         if (availablePlayers.size() != sport.getRuleset().getStartingLineupSize()) {
             throw new IllegalStateException("Not enough available players for team: " + team.getName());
         }
+
         throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
     }
 
+    private void validateLineup(Lineup lineup, Sport sport) {
+        if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
+            footballRuleset.validateLineupOrThrow(lineup);
+            return;
+        }
+
+        if (!sport.getRuleset().isValidLineup(lineup)) {
+            throw new IllegalArgumentException("Lineup is invalid for the active ruleset.");
+        }
+    }
+
     private Tactic resolveTactic(Team team) {
+        Objects.requireNonNull(team, "Team cannot be null.");
+
         if (team.getSelectedTactic() != null) {
             return team.getSelectedTactic();
         }
@@ -172,11 +208,13 @@ public class FootballSeason extends Season {
                 55,
                 55
         );
+
         if (team instanceof FootballTeam footballTeam) {
             footballTeam.assignTactic(defaultTactic);
         } else {
             team.setSelectedTactic(defaultTactic);
         }
+
         return defaultTactic;
     }
 }

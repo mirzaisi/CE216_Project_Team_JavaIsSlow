@@ -61,22 +61,15 @@ public class FootballSportFactory implements SportFactory {
     public League createLeague(String leagueName) {
         FootballLeague league = new FootballLeague(leagueName);
         List<String> teamNames = assetProvider.getTeamNames();
-        if (teamNames == null || teamNames.size() < initialTeamCount) {
-            throw new IllegalStateException("Asset provider does not supply enough team names.");
-        }
+        FootballRuleset ruleset = new FootballRuleset();
 
         for (int i = 0; i < initialTeamCount; i++) {
-            FootballTeam team = new FootballTeam(
-                    "football-team-" + (i + 1),
-                    teamNames.get(i)
-            );
-
+            FootballTeam team = new FootballTeam("football-team-" + (i + 1), teamNames.get(i));
             populatePlayers(team, i);
             populateCoach(team, i);
-            configureMatchPreparation(team, i);
+            configureMatchPreparation(team, i, ruleset);
             league.addTeam(team);
         }
-
         return league;
     }
 
@@ -89,22 +82,17 @@ public class FootballSportFactory implements SportFactory {
         List<String> names = new ArrayList<>();
         names.addAll(assetProvider.getMaleNames());
         names.addAll(assetProvider.getFemaleNames());
-
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply player names.");
         }
-
         for (int i = 0; i < DEFAULT_POSITION_PATTERN.length; i++) {
             String baseName = names.get((teamIndex * DEFAULT_POSITION_PATTERN.length + i) % names.size());
-            String playerName = baseName + " " + (i + 1);
             FootballPosition position = DEFAULT_POSITION_PATTERN[i];
-            FootballAttributeProfile profile = createAttributeProfile(position, teamIndex, i);
-
             team.addPlayer(new FootballPlayer(
                     "football-player-" + (teamIndex + 1) + "-" + (i + 1),
-                    playerName,
+                    baseName + " " + (i + 1),
                     position,
-                    profile
+                    createAttributeProfile(position, teamIndex, i)
             ));
         }
     }
@@ -113,13 +101,10 @@ public class FootballSportFactory implements SportFactory {
         List<String> names = new ArrayList<>();
         names.addAll(assetProvider.getMaleNames());
         names.addAll(assetProvider.getFemaleNames());
-
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply coach names.");
         }
-
         String coachName = names.get(teamIndex % names.size()) + " Coach";
-
         team.addCoach(new FootballCoach(
                 "football-coach-" + (teamIndex + 1),
                 coachName,
@@ -129,89 +114,34 @@ public class FootballSportFactory implements SportFactory {
         ));
     }
 
-    private void configureMatchPreparation(FootballTeam team, int teamIndex) {
+    private void configureMatchPreparation(FootballTeam team, int teamIndex, FootballRuleset ruleset) {
         team.assignTactic(createDefaultTactic(teamIndex));
-        team.assignTrainingPlan(new FootballTrainingPlan(
-                "Balanced Development",
-                60,
-                58,
-                52,
-                true
-        ));
+        team.assignTrainingPlan(new FootballTrainingPlan("Balanced Development", 60, 58, 52, true));
 
         List<FootballPlayer> players = team.getFootballPlayers();
-        List<FootballPlayer> starters = players.subList(0, Math.min(11, players.size()));
+        List<FootballPlayer> starters = players.subList(0, Math.min(ruleset.getStartingLineupSize(), players.size()));
         List<FootballPlayer> bench = players.size() > starters.size()
-                ? players.subList(starters.size(), Math.min(players.size(), starters.size() + 7))
+                ? players.subList(starters.size(), Math.min(players.size(), starters.size() + ruleset.getBenchSize()))
                 : List.of();
-        team.assignLineup(new FootballLineup(starters, bench));
+        team.assignLineup(new FootballLineup(starters, bench), ruleset);
     }
 
     private FootballTactic createDefaultTactic(int teamIndex) {
         return switch (teamIndex % 4) {
-            case 0 -> new FootballTactic(
-                    "Balanced Control",
-                    "4-2-3-1",
-                    FootballTactic.Mentality.BALANCED,
-                    58,
-                    60
-            );
-            case 1 -> new FootballTactic(
-                    "High Press",
-                    "4-3-3",
-                    FootballTactic.Mentality.ATTACKING,
-                    74,
-                    68
-            );
-            case 2 -> new FootballTactic(
-                    "Compact Counter",
-                    "4-4-2",
-                    FootballTactic.Mentality.DEFENSIVE,
-                    50,
-                    45
-            );
-            default -> new FootballTactic(
-                    "Possession Shape",
-                    "4-3-3",
-                    FootballTactic.Mentality.BALANCED,
-                    54,
-                    72
-            );
+            case 0 -> new FootballTactic("Balanced Control", "4-2-3-1", FootballTactic.Mentality.BALANCED, 58, 60);
+            case 1 -> new FootballTactic("High Press", "4-3-3", FootballTactic.Mentality.ATTACKING, 74, 68);
+            case 2 -> new FootballTactic("Compact Counter", "4-4-2", FootballTactic.Mentality.DEFENSIVE, 50, 45);
+            default -> new FootballTactic("Possession Shape", "4-3-3", FootballTactic.Mentality.BALANCED, 54, 72);
         };
     }
 
     private FootballAttributeProfile createAttributeProfile(FootballPosition position, int teamIndex, int playerIndex) {
         int variance = (teamIndex * 7 + playerIndex * 3) % 11;
-
         return switch (position) {
-            case GOALKEEPER -> new FootballAttributeProfile(
-                    38 + variance,
-                    80 + variance,
-                    68 + variance,
-                    62 + variance,
-                    55 + variance
-            );
-            case DEFENDER -> new FootballAttributeProfile(
-                    52 + variance,
-                    78 + variance,
-                    74 + variance,
-                    66 + variance,
-                    63 + variance
-            );
-            case MIDFIELDER -> new FootballAttributeProfile(
-                    69 + variance,
-                    67 + variance,
-                    76 + variance,
-                    81 + variance,
-                    72 + variance
-            );
-            case FORWARD -> new FootballAttributeProfile(
-                    84 + variance,
-                    48 + variance,
-                    73 + variance,
-                    71 + variance,
-                    79 + variance
-            );
+            case GOALKEEPER -> new FootballAttributeProfile(38 + variance, 80 + variance, 68 + variance, 62 + variance, 55 + variance);
+            case DEFENDER -> new FootballAttributeProfile(52 + variance, 78 + variance, 74 + variance, 66 + variance, 63 + variance);
+            case MIDFIELDER -> new FootballAttributeProfile(69 + variance, 67 + variance, 76 + variance, 81 + variance, 72 + variance);
+            case FORWARD -> new FootballAttributeProfile(84 + variance, 48 + variance, 73 + variance, 71 + variance, 79 + variance);
         };
     }
 

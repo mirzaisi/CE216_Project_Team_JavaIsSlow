@@ -1,8 +1,5 @@
 package com.playforgemanager.football;
 
-/**
- * Immutable football skill profile for a player.
- */
 public final class FootballAttributeProfile {
     private static final int MIN_ATTRIBUTE = 0;
     private static final int MAX_ATTRIBUTE = 100;
@@ -21,34 +18,16 @@ public final class FootballAttributeProfile {
         this.speed = validateAttribute("speed", speed);
     }
 
-    public int getAttack() {
-        return attack;
-    }
-
-    public int getDefense() {
-        return defense;
-    }
-
-    public int getStamina() {
-        return stamina;
-    }
-
-    public int getPassing() {
-        return passing;
-    }
-
-    public int getSpeed() {
-        return speed;
-    }
-
-    public int getOverallRating() {
-        return Math.round((attack + defense + stamina + passing + speed) / 5.0f);
-    }
+    public int getAttack() { return attack; }
+    public int getDefense() { return defense; }
+    public int getStamina() { return stamina; }
+    public int getPassing() { return passing; }
+    public int getSpeed() { return speed; }
+    public int getOverallRating() { return Math.round((attack + defense + stamina + passing + speed) / 5.0f); }
 
     private int validateAttribute(String name, int value) {
         if (value < MIN_ATTRIBUTE || value > MAX_ATTRIBUTE) {
-            throw new IllegalArgumentException(
-                    name + " must be between " + MIN_ATTRIBUTE + " and " + MAX_ATTRIBUTE + ".");
+            throw new IllegalArgumentException(name + " must be between " + MIN_ATTRIBUTE + " and " + MAX_ATTRIBUTE + ".");
         }
         return value;
     }

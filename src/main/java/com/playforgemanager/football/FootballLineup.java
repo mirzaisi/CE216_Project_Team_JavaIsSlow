@@ -1,16 +1,12 @@
 package com.playforgemanager.football;
 
 import com.playforgemanager.core.Lineup;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Football-specific lineup that stores starters and optional bench players.
- */
 public final class FootballLineup implements Lineup {
     private final List<FootballPlayer> startingPlayers;
     private final List<FootballPlayer> benchPlayers;
@@ -38,13 +34,8 @@ public final class FootballLineup implements Lineup {
         return startingPlayers.size();
     }
 
-    public List<FootballPlayer> getStartingPlayers() {
-        return startingPlayers;
-    }
-
-    public List<FootballPlayer> getBenchPlayers() {
-        return benchPlayers;
-    }
+    public List<FootballPlayer> getStartingPlayers() { return startingPlayers; }
+    public List<FootballPlayer> getBenchPlayers() { return benchPlayers; }
 
     public List<FootballPlayer> getAllPlayers() {
         List<FootballPlayer> allPlayers = new ArrayList<>(startingPlayers.size() + benchPlayers.size());

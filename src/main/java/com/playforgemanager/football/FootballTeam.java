@@ -9,9 +9,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Football-side team model that owns coaches and typed match-preparation objects.
- */
 public class FootballTeam extends Team {
     private final List<FootballCoach> coaches;
 
@@ -84,6 +81,14 @@ public class FootballTeam extends Team {
         setSelectedLineup(validatedLineup);
     }
 
+    public void assignLineup(FootballLineup lineup, FootballRuleset ruleset) {
+        FootballLineup validatedLineup = Objects.requireNonNull(lineup, "Lineup cannot be null.");
+        Objects.requireNonNull(ruleset, "Football ruleset cannot be null.");
+        validateLineupBelongsToRoster(validatedLineup);
+        ruleset.validateLineupOrThrow(validatedLineup);
+        setSelectedLineup(validatedLineup);
+    }
+
     public FootballLineup getSelectedFootballLineup() {
         return getSelectedLineup() == null ? null : (FootballLineup) getSelectedLineup();
     }
@@ -106,8 +111,7 @@ public class FootballTeam extends Team {
 
     private void validateLineupBelongsToRoster(FootballLineup lineup) {
         List<String> rosterIds = getFootballPlayers().stream().map(FootballPlayer::getId).toList();
-        boolean invalidSelection = lineup.getAllPlayers().stream()
-                .anyMatch(player -> !rosterIds.contains(player.getId()));
+        boolean invalidSelection = lineup.getAllPlayers().stream().anyMatch(player -> !rosterIds.contains(player.getId()));
         if (invalidSelection) {
             throw new IllegalArgumentException("Lineup contains a player that does not belong to the team roster.");
         }
