@@ -5,15 +5,15 @@ import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.GameSession;
 import com.playforgemanager.core.League;
 import com.playforgemanager.core.SportFactory;
+
 import java.util.List;
 
 public class BootstrapFootballConsoleDemo {
-
     public void run(SportFactory sportFactory, String leagueName) {
         GameInitializationService initializationService = new GameInitializationService(sportFactory);
-
         GameSession session = initializationService.startNewSession(leagueName);
         League league = session.getCurrentSeason().getLeague();
+
         if (!(session.getCurrentSeason() instanceof FootballSeason footballSeason)) {
             throw new IllegalStateException("Expected a FootballSeason for the football demo.");
         }
@@ -25,14 +25,15 @@ public class BootstrapFootballConsoleDemo {
         System.out.println();
 
         printGeneratedTeams(league);
+
         List<Fixture> currentWeekFixtures = footballSeason.getCurrentWeekFixtures();
         int playedWeek = footballSeason.getCurrentWeek();
-        footballSeason.playCurrentWeek(session.getActiveSport(), BootstrapFootballMatch::new);
+        footballSeason.playCurrentWeek(session.getActiveSport(), FootballMatch::new);
+
         printWeekResults(currentWeekFixtures, playedWeek);
         printStandingsTable(footballSeason.getStandings());
 
         session.markInProgress();
-
         System.out.println();
         if (session.getCurrentSeason().isCompleted()) {
             System.out.println("Season completed.");
@@ -45,10 +46,11 @@ public class BootstrapFootballConsoleDemo {
     private void printGeneratedTeams(League league) {
         System.out.println("Generated Teams");
         System.out.println("---------------");
-
         for (com.playforgemanager.core.Team team : league.getTeams()) {
             int coachCount = 0;
-            if (team instanceof BootstrapFootballTeam bootstrapTeam) {
+            if (team instanceof FootballTeam footballTeam) {
+                coachCount = footballTeam.getCoaches().size();
+            } else if (team instanceof BootstrapFootballTeam bootstrapTeam) {
                 coachCount = bootstrapTeam.getCoaches().size();
             }
 
@@ -59,7 +61,6 @@ public class BootstrapFootballConsoleDemo {
                     coachCount
             );
         }
-
         System.out.println();
         System.out.println("Total fixtures generated: " + league.getFixtures().size());
         System.out.println();
@@ -68,14 +69,11 @@ public class BootstrapFootballConsoleDemo {
     private void printWeekResults(List<Fixture> playedWeekFixtures, int week) {
         System.out.println("Week " + week + " Results");
         System.out.println("----------------");
-
         for (Fixture fixture : playedWeekFixtures) {
             if (!fixture.isPlayed()) {
                 continue;
             }
-
             var match = fixture.getPlayedMatch();
-
             System.out.printf(
                     "%-15s %d - %d %-15s%n",
                     match.getHomeTeam().getName(),
@@ -92,7 +90,6 @@ public class BootstrapFootballConsoleDemo {
         System.out.println("---------");
         System.out.printf("%-3s %-15s %-3s %-3s %-3s %-3s %-3s %-3s %-3s %-3s%n",
                 "#", "Team", "P", "W", "D", "L", "GF", "GA", "GD", "Pts");
-
         int position = 1;
         for (FootballStandingRow row : standings) {
             System.out.printf("%-3d %-15s %-3d %-3d %-3d %-3d %-3d %-3d %-3d %-3d%n",

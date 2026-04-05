@@ -59,20 +59,21 @@ public class FootballSportFactory implements SportFactory {
 
     @Override
     public League createLeague(String leagueName) {
-        BootstrapFootballLeague league = new BootstrapFootballLeague(leagueName);
+        FootballLeague league = new FootballLeague(leagueName);
         List<String> teamNames = assetProvider.getTeamNames();
         if (teamNames == null || teamNames.size() < initialTeamCount) {
             throw new IllegalStateException("Asset provider does not supply enough team names.");
         }
 
         for (int i = 0; i < initialTeamCount; i++) {
-            BootstrapFootballTeam team = new BootstrapFootballTeam(
+            FootballTeam team = new FootballTeam(
                     "football-team-" + (i + 1),
                     teamNames.get(i)
             );
 
             populatePlayers(team, i);
             populateCoach(team, i);
+            configureMatchPreparation(team, i);
             league.addTeam(team);
         }
 
@@ -81,10 +82,10 @@ public class FootballSportFactory implements SportFactory {
 
     @Override
     public Season createSeason(League league) {
-        return new BootstrapFootballSeason(league);
+        return new FootballSeason(league);
     }
 
-    private void populatePlayers(BootstrapFootballTeam team, int teamIndex) {
+    private void populatePlayers(FootballTeam team, int teamIndex) {
         List<String> names = new ArrayList<>();
         names.addAll(assetProvider.getMaleNames());
         names.addAll(assetProvider.getFemaleNames());
@@ -108,7 +109,7 @@ public class FootballSportFactory implements SportFactory {
         }
     }
 
-    private void populateCoach(BootstrapFootballTeam team, int teamIndex) {
+    private void populateCoach(FootballTeam team, int teamIndex) {
         List<String> names = new ArrayList<>();
         names.addAll(assetProvider.getMaleNames());
         names.addAll(assetProvider.getFemaleNames());
@@ -126,6 +127,57 @@ public class FootballSportFactory implements SportFactory {
                 chooseCoachSpecialization(teamIndex),
                 70 + (teamIndex % 21)
         ));
+    }
+
+    private void configureMatchPreparation(FootballTeam team, int teamIndex) {
+        team.assignTactic(createDefaultTactic(teamIndex));
+        team.assignTrainingPlan(new FootballTrainingPlan(
+                "Balanced Development",
+                60,
+                58,
+                52,
+                true
+        ));
+
+        List<FootballPlayer> players = team.getFootballPlayers();
+        List<FootballPlayer> starters = players.subList(0, Math.min(11, players.size()));
+        List<FootballPlayer> bench = players.size() > starters.size()
+                ? players.subList(starters.size(), Math.min(players.size(), starters.size() + 7))
+                : List.of();
+        team.assignLineup(new FootballLineup(starters, bench));
+    }
+
+    private FootballTactic createDefaultTactic(int teamIndex) {
+        return switch (teamIndex % 4) {
+            case 0 -> new FootballTactic(
+                    "Balanced Control",
+                    "4-2-3-1",
+                    FootballTactic.Mentality.BALANCED,
+                    58,
+                    60
+            );
+            case 1 -> new FootballTactic(
+                    "High Press",
+                    "4-3-3",
+                    FootballTactic.Mentality.ATTACKING,
+                    74,
+                    68
+            );
+            case 2 -> new FootballTactic(
+                    "Compact Counter",
+                    "4-4-2",
+                    FootballTactic.Mentality.DEFENSIVE,
+                    50,
+                    45
+            );
+            default -> new FootballTactic(
+                    "Possession Shape",
+                    "4-3-3",
+                    FootballTactic.Mentality.BALANCED,
+                    54,
+                    72
+            );
+        };
     }
 
     private FootballAttributeProfile createAttributeProfile(FootballPosition position, int teamIndex, int playerIndex) {

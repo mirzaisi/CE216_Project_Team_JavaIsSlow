@@ -41,7 +41,6 @@ public class FootballSeason extends Season {
         if (isCompleted()) {
             throw new IllegalStateException("Season is already completed.");
         }
-
         if (getLeague().getFixtures().isEmpty()) {
             throw new IllegalStateException("Season has no scheduled fixtures.");
         }
@@ -60,7 +59,6 @@ public class FootballSeason extends Season {
                     matchFactory.apply(fixture.getHomeTeam(), fixture.getAwayTeam()),
                     "Match factory cannot return null."
             );
-
             applySelectedSetup(match, fixture.getHomeTeam(), fixture.getAwayTeam(), sport);
             sport.getMatchEngine().simulate(match, sport.getRuleset());
             fixture.attachPlayedMatch(match);
@@ -78,11 +76,9 @@ public class FootballSeason extends Season {
 
     public void refreshStandings(StandingsPolicy standingsPolicy) {
         Objects.requireNonNull(standingsPolicy, "Standings policy cannot be null.");
-
         if (!(standingsPolicy instanceof FootballStandingsPolicy footballStandingsPolicy)) {
             throw new IllegalArgumentException("FootballSeason requires FootballStandingsPolicy.");
         }
-
         this.standings = footballStandingsPolicy.calculateTable(getLeague());
     }
 
@@ -99,7 +95,6 @@ public class FootballSeason extends Season {
         for (Team team : getLeague().getTeams()) {
             nextLeague.addTeam(team);
         }
-
         return new FootballSeason(nextLeague);
     }
 
@@ -114,7 +109,6 @@ public class FootballSeason extends Season {
             markCompleted();
             return;
         }
-
         setCurrentWeek(getCurrentWeek() + 1);
     }
 
@@ -134,18 +128,36 @@ public class FootballSeason extends Season {
             return team.getSelectedLineup();
         }
 
+        if (team instanceof FootballTeam footballTeam) {
+            List<FootballPlayer> starters = footballTeam.getAvailablePlayers().stream()
+                    .limit(sport.getRuleset().getStartingLineupSize())
+                    .toList();
+            if (starters.size() != sport.getRuleset().getStartingLineupSize()) {
+                throw new IllegalStateException("Not enough available players for team: " + team.getName());
+            }
+
+            int benchSize = Math.min(
+                    sport.getRuleset().getBenchSize(),
+                    Math.max(0, footballTeam.getFootballPlayers().size() - starters.size())
+            );
+            List<FootballPlayer> bench = footballTeam.getAvailablePlayers().stream()
+                    .skip(starters.size())
+                    .limit(benchSize)
+                    .toList();
+
+            FootballLineup autoLineup = new FootballLineup(starters, bench);
+            footballTeam.assignLineup(autoLineup);
+            return autoLineup;
+        }
+
         List<Player> availablePlayers = team.getRoster().stream()
                 .filter(Player::isAvailable)
                 .limit(sport.getRuleset().getStartingLineupSize())
                 .toList();
-
         if (availablePlayers.size() != sport.getRuleset().getStartingLineupSize()) {
             throw new IllegalStateException("Not enough available players for team: " + team.getName());
         }
-
-        Lineup autoLineup = new BootstrapFootballLineup(availablePlayers);
-        team.setSelectedLineup(autoLineup);
-        return autoLineup;
+        throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
     }
 
     private Tactic resolveTactic(Team team) {
@@ -153,8 +165,18 @@ public class FootballSeason extends Season {
             return team.getSelectedTactic();
         }
 
-        Tactic defaultTactic = new BootstrapFootballTactic("Balanced");
-        team.setSelectedTactic(defaultTactic);
+        FootballTactic defaultTactic = new FootballTactic(
+                "Balanced",
+                "4-3-3",
+                FootballTactic.Mentality.BALANCED,
+                55,
+                55
+        );
+        if (team instanceof FootballTeam footballTeam) {
+            footballTeam.assignTactic(defaultTactic);
+        } else {
+            team.setSelectedTactic(defaultTactic);
+        }
         return defaultTactic;
     }
 }
