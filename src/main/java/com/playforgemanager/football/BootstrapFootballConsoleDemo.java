@@ -28,7 +28,7 @@ public class BootstrapFootballConsoleDemo {
 
         List<Fixture> currentWeekFixtures = footballSeason.getCurrentWeekFixtures();
         int playedWeek = footballSeason.getCurrentWeek();
-        footballSeason.playCurrentWeek(session.getActiveSport(), FootballMatch::new);
+        footballSeason.playCurrentWeek(session.getActiveSport(), BootstrapFootballMatch::new);
 
         printWeekResults(currentWeekFixtures, playedWeek);
         printStandingsTable(footballSeason.getStandings());

@@ -3,7 +3,6 @@ package com.playforgemanager.football;
 import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.League;
 import com.playforgemanager.core.Match;
-import com.playforgemanager.core.Ruleset;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,7 +13,7 @@ class FootballStandingsPolicyTest {
 
     @Test
     void calculateTableUpdatesStandingsAfterOnePlayedMatch() {
-        Ruleset ruleset = new FootballSport().getRuleset();
+        FootballRuleset ruleset = new FootballSport().getFootballRuleset();
         FootballStandingsPolicy standingsPolicy = new FootballStandingsPolicy(ruleset);
         League league = buildLeague();
 
@@ -47,7 +46,7 @@ class FootballStandingsPolicyTest {
 
     @Test
     void calculateTableSortsByPointsThenGoalDifferenceThenGoalsFor() {
-        Ruleset ruleset = new FootballSport().getRuleset();
+        FootballRuleset ruleset = new FootballSport().getFootballRuleset();
         FootballStandingsPolicy standingsPolicy = new FootballStandingsPolicy(ruleset);
         League league = buildLeague();
 

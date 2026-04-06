@@ -76,12 +76,30 @@ class FootballSeasonTest {
     }
 
     private void addTeam(FootballLeague league, String id, String name) {
-        BootstrapFootballTeam team = new BootstrapFootballTeam(id, name);
+        FootballTeam team = new FootballTeam(id, name);
 
         for (int i = 0; i < 18; i++) {
-            team.addPlayer(new BootstrapFootballPlayer(id + "-player-" + i, name + " Player " + i));
+            team.addPlayer(new FootballPlayer(
+                    id + "-player-" + i,
+                    name + " Player " + i,
+                    positionForIndex(i),
+                    new FootballAttributeProfile(70, 70, 70, 70, 70)
+            ));
         }
 
         league.addTeam(team);
+    }
+
+    private FootballPosition positionForIndex(int index) {
+        if (index == 0) {
+            return FootballPosition.GOALKEEPER;
+        }
+        if (index <= 6) {
+            return FootballPosition.DEFENDER;
+        }
+        if (index <= 12) {
+            return FootballPosition.MIDFIELDER;
+        }
+        return FootballPosition.FORWARD;
     }
 }
