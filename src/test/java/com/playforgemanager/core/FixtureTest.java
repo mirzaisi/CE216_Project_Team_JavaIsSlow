@@ -1,10 +1,7 @@
 package com.playforgemanager.core;
 
-import com.playforgemanager.football.BootstrapFootballLeague;
-import com.playforgemanager.football.BootstrapFootballMatch;
-import com.playforgemanager.football.BootstrapFootballSeason;
-import com.playforgemanager.football.BootstrapFootballTeam;
-import com.playforgemanager.football.FootballSport;
+import com.playforgemanager.football.FootballMatch;
+import com.playforgemanager.football.FootballTeam;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,8 +13,8 @@ class FixtureTest {
 
     @Test
     void constructorStoresWeekHomeAndAwayTeams() {
-        Team home = new BootstrapFootballTeam("team-1", "Red Hawks");
-        Team away = new BootstrapFootballTeam("team-2", "Blue Wolves");
+        Team home = new FootballTeam("team-1", "Red Hawks");
+        Team away = new FootballTeam("team-2", "Blue Wolves");
 
         Fixture fixture = new Fixture(1, home, away);
 
@@ -29,7 +26,7 @@ class FixtureTest {
 
     @Test
     void constructorRejectsSameTeamForHomeAndAway() {
-        Team team = new BootstrapFootballTeam("team-1", "Red Hawks");
+        Team team = new FootballTeam("team-1", "Red Hawks");
 
         assertThrows(IllegalArgumentException.class, () ->
                 new Fixture(1, team, team)
@@ -38,8 +35,8 @@ class FixtureTest {
 
     @Test
     void constructorRejectsWeekLessThanOne() {
-        Team home = new BootstrapFootballTeam("team-1", "Red Hawks");
-        Team away = new BootstrapFootballTeam("team-2", "Blue Wolves");
+        Team home = new FootballTeam("team-1", "Red Hawks");
+        Team away = new FootballTeam("team-2", "Blue Wolves");
 
         assertThrows(IllegalArgumentException.class, () ->
                 new Fixture(0, home, away)
@@ -48,11 +45,11 @@ class FixtureTest {
 
     @Test
     void attachPlayedMatchMarksFixtureAsPlayed() {
-        Team home = new BootstrapFootballTeam("team-1", "Red Hawks");
-        Team away = new BootstrapFootballTeam("team-2", "Blue Wolves");
+        Team home = new FootballTeam("team-1", "Red Hawks");
+        Team away = new FootballTeam("team-2", "Blue Wolves");
 
         Fixture fixture = new Fixture(1, home, away);
-        Match match = new BootstrapFootballMatch(home, away);
+        Match match = new FootballMatch(home, away);
         match.setResult(2, 1);
 
         fixture.attachPlayedMatch(match);
@@ -63,12 +60,12 @@ class FixtureTest {
 
     @Test
     void attachPlayedMatchRejectsTeamsThatDoNotMatchFixture() {
-        Team home = new BootstrapFootballTeam("team-1", "Red Hawks");
-        Team away = new BootstrapFootballTeam("team-2", "Blue Wolves");
-        Team other = new BootstrapFootballTeam("team-3", "Golden Stars");
+        Team home = new FootballTeam("team-1", "Red Hawks");
+        Team away = new FootballTeam("team-2", "Blue Wolves");
+        Team other = new FootballTeam("team-3", "Golden Stars");
 
         Fixture fixture = new Fixture(1, home, away);
-        Match wrongMatch = new BootstrapFootballMatch(home, other);
+        Match wrongMatch = new FootballMatch(home, other);
 
         assertThrows(IllegalArgumentException.class, () ->
                 fixture.attachPlayedMatch(wrongMatch)

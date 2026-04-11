@@ -26,7 +26,7 @@ class FootballSeasonTest {
         FootballSport sport = new FootballSport();
         FootballSeason season = buildSeason();
 
-        season.playCurrentWeek(sport, BootstrapFootballMatch::new);
+        season.playCurrentWeek(sport, FootballMatch::new);
 
         assertEquals(2, season.getCurrentWeek());
         assertTrue(season.getLeague().getFixtures().stream().anyMatch(fixture -> fixture.isPlayed()));
@@ -38,11 +38,11 @@ class FootballSeasonTest {
         FootballSeason season = buildSeason();
 
         var firstFixture = season.getCurrentWeekFixtures().get(0);
-        var manualMatch = new BootstrapFootballMatch(firstFixture.getHomeTeam(), firstFixture.getAwayTeam());
+        var manualMatch = new FootballMatch(firstFixture.getHomeTeam(), firstFixture.getAwayTeam());
         manualMatch.setResult(1, 1);
         firstFixture.attachPlayedMatch(manualMatch);
 
-        season.playCurrentWeek(sport, BootstrapFootballMatch::new);
+        season.playCurrentWeek(sport, FootballMatch::new);
 
         assertEquals(1, firstFixture.getPlayedMatch().getHomeScore());
         assertEquals(1, firstFixture.getPlayedMatch().getAwayScore());
@@ -54,7 +54,7 @@ class FootballSeasonTest {
         FootballSeason season = buildSeason();
 
         while (!season.isCompleted()) {
-            season.playCurrentWeek(sport, BootstrapFootballMatch::new);
+            season.playCurrentWeek(sport, FootballMatch::new);
         }
 
         assertTrue(season.isCompleted());

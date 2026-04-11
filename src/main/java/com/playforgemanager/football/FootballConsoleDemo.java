@@ -5,10 +5,12 @@ import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.GameSession;
 import com.playforgemanager.core.League;
 import com.playforgemanager.core.SportFactory;
+import com.playforgemanager.core.Team;
 
 import java.util.List;
 
-public class BootstrapFootballConsoleDemo {
+public class FootballConsoleDemo {
+
     public void run(SportFactory sportFactory, String leagueName) {
         GameInitializationService initializationService = new GameInitializationService(sportFactory);
         GameSession session = initializationService.startNewSession(leagueName);
@@ -28,7 +30,7 @@ public class BootstrapFootballConsoleDemo {
 
         List<Fixture> currentWeekFixtures = footballSeason.getCurrentWeekFixtures();
         int playedWeek = footballSeason.getCurrentWeek();
-        footballSeason.playCurrentWeek(session.getActiveSport(), BootstrapFootballMatch::new);
+        footballSeason.playCurrentWeek(session.getActiveSport(), FootballMatch::new);
 
         printWeekResults(currentWeekFixtures, playedWeek);
         printStandingsTable(footballSeason.getStandings());
@@ -46,14 +48,11 @@ public class BootstrapFootballConsoleDemo {
     private void printGeneratedTeams(League league) {
         System.out.println("Generated Teams");
         System.out.println("---------------");
-        for (com.playforgemanager.core.Team team : league.getTeams()) {
+        for (Team team : league.getTeams()) {
             int coachCount = 0;
             if (team instanceof FootballTeam footballTeam) {
                 coachCount = footballTeam.getCoaches().size();
-            } else if (team instanceof BootstrapFootballTeam bootstrapTeam) {
-                coachCount = bootstrapTeam.getCoaches().size();
             }
-
             System.out.printf(
                     "- %-15s | Players: %-2d | Coaches: %-2d%n",
                     team.getName(),

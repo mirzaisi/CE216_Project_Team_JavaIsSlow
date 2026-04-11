@@ -2,7 +2,7 @@ package com.playforgemanager.main;
 
 import com.playforgemanager.core.AssetProvider;
 import com.playforgemanager.core.SportFactory;
-import com.playforgemanager.football.BootstrapFootballConsoleDemo;
+import com.playforgemanager.football.FootballConsoleDemo;
 import com.playforgemanager.football.FootballSportFactory;
 import com.playforgemanager.infrastructure.InMemoryAssetProvider;
 
@@ -11,7 +11,7 @@ public class Main {
         AssetProvider assetProvider = new InMemoryAssetProvider();
         SportFactory sportFactory = new FootballSportFactory(assetProvider, 4);
 
-        BootstrapFootballConsoleDemo demo = new BootstrapFootballConsoleDemo();
+        FootballConsoleDemo demo = new FootballConsoleDemo();
         demo.run(sportFactory, "PlayForge Demo League");
     }
 }

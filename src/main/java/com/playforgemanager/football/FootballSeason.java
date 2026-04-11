@@ -4,7 +4,6 @@ import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.League;
 import com.playforgemanager.core.Lineup;
 import com.playforgemanager.core.Match;
-import com.playforgemanager.core.Player;
 import com.playforgemanager.core.Season;
 import com.playforgemanager.core.Sport;
 import com.playforgemanager.core.StandingsPolicy;
@@ -133,54 +132,45 @@ public class FootballSeason extends Season {
         Objects.requireNonNull(team, "Team cannot be null.");
         Objects.requireNonNull(sport, "Sport cannot be null.");
 
-        if (team.getSelectedLineup() != null) {
-            validateLineup(team.getSelectedLineup(), sport);
-            return team.getSelectedLineup();
+        if (!(team instanceof FootballTeam footballTeam)) {
+            throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
         }
 
-        if (team instanceof FootballTeam footballTeam) {
-            List<FootballPlayer> availablePlayers = footballTeam.getAvailablePlayers();
-
-            List<FootballPlayer> starters = availablePlayers.stream()
-                    .limit(sport.getRuleset().getStartingLineupSize())
-                    .toList();
-
-            if (starters.size() != sport.getRuleset().getStartingLineupSize()) {
-                throw new IllegalStateException("Not enough available players for team: " + team.getName());
-            }
-
-            int benchSize = Math.min(
-                    sport.getRuleset().getBenchSize(),
-                    Math.max(0, availablePlayers.size() - starters.size())
-            );
-
-            List<FootballPlayer> bench = availablePlayers.stream()
-                    .skip(starters.size())
-                    .limit(benchSize)
-                    .toList();
-
-            FootballLineup autoLineup = new FootballLineup(starters, bench);
-            validateLineup(autoLineup, sport);
-
-            if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
-                footballTeam.assignLineup(autoLineup, footballRuleset);
-            } else {
-                footballTeam.assignLineup(autoLineup);
-            }
-
-            return autoLineup;
+        if (footballTeam.getSelectedLineup() != null) {
+            validateLineup(footballTeam.getSelectedLineup(), sport);
+            return footballTeam.getSelectedLineup();
         }
 
-        List<Player> availablePlayers = team.getRoster().stream()
-                .filter(Player::isAvailable)
+        List<FootballPlayer> availablePlayers = footballTeam.getAvailablePlayers();
+
+        List<FootballPlayer> starters = availablePlayers.stream()
                 .limit(sport.getRuleset().getStartingLineupSize())
                 .toList();
 
-        if (availablePlayers.size() != sport.getRuleset().getStartingLineupSize()) {
+        if (starters.size() != sport.getRuleset().getStartingLineupSize()) {
             throw new IllegalStateException("Not enough available players for team: " + team.getName());
         }
 
-        throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
+        int benchSize = Math.min(
+                sport.getRuleset().getBenchSize(),
+                Math.max(0, availablePlayers.size() - starters.size())
+        );
+
+        List<FootballPlayer> bench = availablePlayers.stream()
+                .skip(starters.size())
+                .limit(benchSize)
+                .toList();
+
+        FootballLineup autoLineup = new FootballLineup(starters, bench);
+        validateLineup(autoLineup, sport);
+
+        if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
+            footballTeam.assignLineup(autoLineup, footballRuleset);
+        } else {
+            footballTeam.assignLineup(autoLineup);
+        }
+
+        return autoLineup;
     }
 
     private void validateLineup(Lineup lineup, Sport sport) {
@@ -197,8 +187,12 @@ public class FootballSeason extends Season {
     private Tactic resolveTactic(Team team) {
         Objects.requireNonNull(team, "Team cannot be null.");
 
-        if (team.getSelectedTactic() != null) {
-            return team.getSelectedTactic();
+        if (!(team instanceof FootballTeam footballTeam)) {
+            throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
+        }
+
+        if (footballTeam.getSelectedTactic() != null) {
+            return footballTeam.getSelectedTactic();
         }
 
         FootballTactic defaultTactic = new FootballTactic(
@@ -209,12 +203,7 @@ public class FootballSeason extends Season {
                 55
         );
 
-        if (team instanceof FootballTeam footballTeam) {
-            footballTeam.assignTactic(defaultTactic);
-        } else {
-            team.setSelectedTactic(defaultTactic);
-        }
-
+        footballTeam.assignTactic(defaultTactic);
         return defaultTactic;
     }
 }

@@ -18,7 +18,7 @@ class FootballStandingsPolicyTest {
         League league = buildLeague();
 
         Fixture fixture = new Fixture(1, league.getTeams().get(0), league.getTeams().get(1));
-        Match match = new BootstrapFootballMatch(fixture.getHomeTeam(), fixture.getAwayTeam());
+        Match match = new FootballMatch(fixture.getHomeTeam(), fixture.getAwayTeam());
         match.setResult(2, 1);
         fixture.attachPlayedMatch(match);
         league.addFixture(fixture);
@@ -51,12 +51,12 @@ class FootballStandingsPolicyTest {
         League league = buildLeague();
 
         Fixture first = new Fixture(1, league.getTeams().get(0), league.getTeams().get(1));
-        Match firstMatch = new BootstrapFootballMatch(first.getHomeTeam(), first.getAwayTeam());
+        Match firstMatch = new FootballMatch(first.getHomeTeam(), first.getAwayTeam());
         firstMatch.setResult(2, 0);
         first.attachPlayedMatch(firstMatch);
 
         Fixture second = new Fixture(1, league.getTeams().get(2), league.getTeams().get(3));
-        Match secondMatch = new BootstrapFootballMatch(second.getHomeTeam(), second.getAwayTeam());
+        Match secondMatch = new FootballMatch(second.getHomeTeam(), second.getAwayTeam());
         secondMatch.setResult(1, 0);
         second.attachPlayedMatch(secondMatch);
 
@@ -71,10 +71,10 @@ class FootballStandingsPolicyTest {
 
     private League buildLeague() {
         FootballLeague league = new FootballLeague("Test League");
-        league.addTeam(new BootstrapFootballTeam("team-1", "Red Hawks"));
-        league.addTeam(new BootstrapFootballTeam("team-2", "Blue Wolves"));
-        league.addTeam(new BootstrapFootballTeam("team-3", "Golden Stars"));
-        league.addTeam(new BootstrapFootballTeam("team-4", "Iron Lions"));
+        league.addTeam(new FootballTeam("team-1", "Red Hawks"));
+        league.addTeam(new FootballTeam("team-2", "Blue Wolves"));
+        league.addTeam(new FootballTeam("team-3", "Golden Stars"));
+        league.addTeam(new FootballTeam("team-4", "Iron Lions"));
         return league;
     }
 }

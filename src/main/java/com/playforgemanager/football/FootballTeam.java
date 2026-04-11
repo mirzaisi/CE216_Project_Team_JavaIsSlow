@@ -26,10 +26,6 @@ public class FootballTeam extends Team {
         super.addPlayer(footballPlayer);
     }
 
-    public void addPlayer(FootballPlayer player) {
-        addPlayer((Player) player);
-    }
-
     public boolean removePlayerById(String playerId) {
         boolean removed = super.removePlayer(playerId);
         if (removed && getSelectedFootballLineup() != null && getSelectedFootballLineup().containsPlayerId(playerId)) {

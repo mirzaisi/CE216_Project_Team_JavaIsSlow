@@ -65,10 +65,10 @@ class RoundRobinFootballSchedulerTest {
 
     private List<Team> sampleTeams() {
         return List.of(
-                new BootstrapFootballTeam("team-1", "Red Hawks"),
-                new BootstrapFootballTeam("team-2", "Blue Wolves"),
-                new BootstrapFootballTeam("team-3", "Golden Stars"),
-                new BootstrapFootballTeam("team-4", "Iron Lions")
+                new FootballTeam("team-1", "Red Hawks"),
+                new FootballTeam("team-2", "Blue Wolves"),
+                new FootballTeam("team-3", "Golden Stars"),
+                new FootballTeam("team-4", "Iron Lions")
         );
     }
 

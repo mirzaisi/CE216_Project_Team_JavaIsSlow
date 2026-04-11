@@ -1,9 +1,9 @@
 package com.playforgemanager.core;
 
-import com.playforgemanager.football.BootstrapFootballLeague;
-import com.playforgemanager.football.BootstrapFootballSeason;
-import com.playforgemanager.football.BootstrapFootballTeam;
+import com.playforgemanager.football.FootballLeague;
+import com.playforgemanager.football.FootballSeason;
 import com.playforgemanager.football.FootballSport;
+import com.playforgemanager.football.FootballTeam;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,10 +14,10 @@ class GameSessionTest {
     @Test
     void constructorStoresSportSeasonTeamAndInitialProgressionState() {
         Sport sport = new FootballSport();
-        League league = new BootstrapFootballLeague("Test League");
-        Team team = new BootstrapFootballTeam("team-1", "Red Hawks");
+        League league = new FootballLeague("Test League");
+        Team team = new FootballTeam("team-1", "Red Hawks");
         league.addTeam(team);
-        Season season = new BootstrapFootballSeason(league);
+        Season season = new FootballSeason(league);
 
         GameSession session = new GameSession(
                 sport,
@@ -35,10 +35,10 @@ class GameSessionTest {
     @Test
     void markInProgressChangesStateToInProgress() {
         Sport sport = new FootballSport();
-        League league = new BootstrapFootballLeague("Test League");
-        Team team = new BootstrapFootballTeam("team-1", "Red Hawks");
+        League league = new FootballLeague("Test League");
+        Team team = new FootballTeam("team-1", "Red Hawks");
         league.addTeam(team);
-        Season season = new BootstrapFootballSeason(league);
+        Season season = new FootballSeason(league);
 
         GameSession session = new GameSession(
                 sport,
@@ -55,10 +55,10 @@ class GameSessionTest {
     @Test
     void markCompletedChangesStateToCompleted() {
         Sport sport = new FootballSport();
-        League league = new BootstrapFootballLeague("Test League");
-        Team team = new BootstrapFootballTeam("team-1", "Red Hawks");
+        League league = new FootballLeague("Test League");
+        Team team = new FootballTeam("team-1", "Red Hawks");
         league.addTeam(team);
-        Season season = new BootstrapFootballSeason(league);
+        Season season = new FootballSeason(league);
 
         GameSession session = new GameSession(
                 sport,
@@ -74,10 +74,10 @@ class GameSessionTest {
 
     @Test
     void constructorRejectsNullActiveSport() {
-        League league = new BootstrapFootballLeague("Test League");
-        Team team = new BootstrapFootballTeam("team-1", "Red Hawks");
+        League league = new FootballLeague("Test League");
+        Team team = new FootballTeam("team-1", "Red Hawks");
         league.addTeam(team);
-        Season season = new BootstrapFootballSeason(league);
+        Season season = new FootballSeason(league);
 
         assertThrows(NullPointerException.class, () ->
                 new GameSession(null, season, team, ProgressionState.READY_TO_START)

@@ -1,0 +1,507 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+% header / footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{PlayForge Manager}
+\fancyhead[R]{Milestone \#2}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% inline code
+\definecolor{codegray}{gray}{0.95}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% listings styling for Java snippets
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    backgroundcolor=\color{codegray},
+    frame=single,
+    breaklines=true,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    tabsize=4
+}
+
+\title{}
+\author{}
+\date{}
+
+\begin{document}
+
+% ========================= TITLE PAGE =========================
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+
+    {\large CE 216 -- Fundamental Topics in Programming \par}
+    \vspace{0.4cm}
+    {\normalsize Associate Prof.\ Dr.\ Kaya Oğuz \par}
+
+    \vfill
+
+    {\Huge \textbf{PlayForge Manager} \par}
+    \vspace{0.6cm}
+    {\Large Milestone \#2 Report \par}
+    \vspace{0.4cm}
+    {\large Implementation, Testing, and Design Changes \par}
+
+    \vfill
+
+    \begin{tabular}{ll}
+        \textbf{Team:}          & JavaIsSlow                                                           \\
+        \textbf{Members:}       & Mirza İşi, Sepehr Rahimi, Doruk Faydalı, Çağan Parlapan              \\
+        \textbf{Repository:}    & \url{https://github.com/mirzaisi/CE216_Project_Team_JavaIsSlow}      \\
+        \textbf{Submission:}    & 12.04.2026                                                           \\
+    \end{tabular}
+
+    \vfill
+    {\large Spring 2026 \par}
+\end{titlepage}
+
+% ========================= TOC =========================
+\tableofcontents
+\newpage
+
+% ========================= 1. SCOPE =========================
+\section{Milestone Scope and Deliverables}
+
+This document accompanies the Milestone \#2 submission of PlayForge Manager.
+The goal of M2 is to translate the M1 design into a working Java project
+with a complete abstraction layer, a first concrete sport (football),
+a minimal runnable simulation, and a focused unit-test suite that proves
+the foundations are sound.
+
+The expected deliverables, following the assignment instructions, are:
+\begin{itemize}
+    \item A Maven project that builds and tests cleanly from a fresh clone.
+    \item A runnable entry point reachable via \code{mvn exec:java}.
+    \item A minimum of twenty meaningful unit tests. The project ships with
+          \textbf{76}, covering every major abstraction and policy.
+    \item This milestone report (PDF) describing what was built and what
+          changed from the M1 design.
+    \item A GitHub Release tagged before the 12 April 2026 deadline.
+    \item A TXT file containing the repository URL.
+\end{itemize}
+
+% ========================= 2. SUMMARY =========================
+\section{Summary of Implementation}
+
+Every interface and abstract class defined in the M1 design document is
+implemented in code. Football is realised as a first concrete sport that
+plugs into the shared abstractions without leaking back into the core layer.
+
+\subsection{Layered Package Layout}
+
+The project follows the five-layer structure defined in Section 4 of the
+M1 design:
+
+\begin{itemize}
+    \item \code{com.playforgemanager.core} -- shared abstractions, interfaces,
+          and abstract base classes. No football imports.
+    \item \code{com.playforgemanager.application} -- use-case services
+          (initialization, session wiring). Depends only on core.
+    \item \code{com.playforgemanager.football} -- concrete football sport
+          module implementing every core contract.
+    \item \code{com.playforgemanager.infrastructure} -- support services,
+          currently an in-memory asset provider for names, teams, and logos.
+    \item \code{com.playforgemanager.main} -- program entry point used by
+          \code{mvn exec:java}.
+\end{itemize}
+
+The dependency rule is enforced by the package layout and verified by a
+simple import check: neither \code{core} nor \code{application} imports
+anything from the football module.
+
+\subsection{Shared Abstractions (Core Layer)}
+
+All twenty abstractions listed in Table~5.1 of the M1 design are
+implemented:
+
+\begin{longtable}{ll}
+    \toprule
+    \textbf{Abstraction}      & \textbf{Form}                          \\
+    \midrule
+    \endhead
+    \code{GameSession}        & concrete class                         \\
+    \code{Sport}              & interface                              \\
+    \code{SportFactory}       & interface                              \\
+    \code{Ruleset}            & interface                              \\
+    \code{League}             & abstract class                         \\
+    \code{Season}             & abstract class                         \\
+    \code{Team}               & abstract class                         \\
+    \code{Player}             & abstract class                         \\
+    \code{Coach}              & abstract class                         \\
+    \code{Match}              & abstract class                         \\
+    \code{Fixture}            & concrete class                         \\
+    \code{Lineup}             & interface                              \\
+    \code{Tactic}             & interface                              \\
+    \code{TrainingPlan}       & interface                              \\
+    \code{MatchEngine}        & interface                              \\
+    \code{Scheduler}          & interface                              \\
+    \code{StandingsPolicy}    & interface                              \\
+    \code{InjuryPolicy}       & interface                              \\
+    \code{AssetProvider}      & interface                              \\
+    \code{ProgressionState}   & enum                                   \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Football Module}
+
+The football package provides one concrete class per core abstraction,
+matching Table~6.1 of the M1 design. The module contains:
+
+\begin{itemize}
+    \item \code{FootballSport}, \code{FootballSportFactory} -- composition
+          root and creation entry point.
+    \item \code{FootballRuleset} -- scoring, lineup limits, bench size,
+          points logic, and availability checks.
+    \item \code{RoundRobinFootballScheduler} -- double round-robin fixture
+          generator.
+    \item \code{FootballLeague}, \code{FootballSeason} -- competition
+          containers and week-by-week progression.
+    \item \code{FootballStandingsPolicy}, \code{FootballStandingRow} --
+          league table calculation with tie-breaking.
+    \item \code{FootballMatch}, \code{FootballMatchEngine} -- match entity
+          and the stateless engine that produces results.
+    \item \code{FootballInjuryPolicy} -- post-match injury application and
+          weekly recovery countdown.
+    \item \code{FootballTeam}, \code{FootballPlayer}, \code{FootballCoach},
+          \code{FootballLineup}, \code{FootballTactic}, \code{FootballTrainingPlan}
+          -- football realisations of the core entities.
+    \item \code{FootballAttributeProfile}, \code{FootballPosition} --
+          composed pieces of football-specific player data.
+    \item \code{FootballConsoleDemo} -- thin console runner used by
+          \code{Main}.
+\end{itemize}
+
+\subsection{Application and Infrastructure}
+
+\code{GameInitializationService} is the only application service required
+for M2. It accepts any \code{SportFactory}, creates a sport, builds a
+league, generates a fixture list, and returns a fully wired
+\code{GameSession}. The service depends only on the core layer.
+
+\code{InMemoryAssetProvider} supplies male and female given names, team
+names, and placeholder logo references. It is used by the football factory
+during league and team generation.
+
+% ========================= 3. CHANGELOG =========================
+\section{Changes from the M1 Design}
+
+The M1 design was close to what we actually built, but a few adjustments
+were made during implementation. They are listed here with the reason for
+each change.
+
+\subsection{Bootstrap layer removed}
+
+Early in M2 we kept a parallel \code{Bootstrap*} family of football
+classes alongside the canonical ones. These had been created during the
+M1 transition so the project always compiled, and were used by some
+tests as lightweight stand-ins for the real types.
+
+Before submission these nine classes were deleted
+(\code{BootstrapFootballLeague}, \code{Season}, \code{Team}, \code{Player},
+\code{Coach}, \code{Lineup}, \code{Match}, \code{Scheduler},
+\code{Tactic}), the console demo was renamed from
+\code{BootstrapFootballConsoleDemo} to \code{FootballConsoleDemo}, and the
+tests that referenced the bootstrap types were migrated onto the canonical
+football classes. The reason was to remove duplication and make the code
+match the class names from Table~6.1 of the M1 design one-to-one.
+
+\subsection{FootballMatchEngine and FootballInjuryPolicy extracted}
+
+The M1 design lists \code{FootballMatchEngine} and \code{FootballInjuryPolicy}
+as top-level classes. During the initial M2 prototyping they were inlined as
+private static inner classes inside \code{FootballSport}, which worked but
+obscured the design. Both were extracted into their own files so that
+\code{FootballSport} is now a thin composition root and each policy can be
+reused, tested, and replaced independently.
+
+\subsection{Deterministic match simulation}
+
+The M1 design describes the match engine as stateless but does not
+prescribe how it should produce scores. For M2 we chose a simple
+deterministic simulation: the engine derives a seed from the participating
+team names and feeds it to a local \code{java.util.Random}. This choice is
+intentional -- it gives us a reproducible result for each team pairing,
+which makes the simulation trivial to unit-test and makes the console demo
+stable across runs. Player attributes and tactics are stored on the entities
+but are not yet folded into the scoring formula. Integrating them is on the
+list of deferred work for later milestones.
+
+\subsection{Injury model simplified}
+
+The M1 design lists \code{InjuryPolicy} as a policy that handles injuries
+and recovery but does not specify the exact rule set. For M2 we chose a
+minimal, deterministic model:
+
+\begin{itemize}
+    \item After every played match the losing side has one player from the
+          starting lineup marked as injured. On a draw the home side takes
+          the hit. The player is selected by a deterministic index derived
+          from the final scoreline so the rule is reproducible in tests.
+    \item Injured players are unavailable for a configurable number of
+          matches (default: two). At the end of each week the policy's
+          \code{recoverPlayers} method ticks the countdown down by one.
+    \item The football ruleset rejects any lineup that contains an
+          unavailable player, so injured players cannot be selected.
+    \item When a player is injured, the affected team's stored lineup is
+          cleared so that the next weekly resolution rebuilds a fresh
+          valid lineup from whoever is still available. This is the
+          explicit link between injury and availability that connects the
+          policy to the season flow.
+\end{itemize}
+
+This model is documented here as a deliberate simplification. Stamina,
+fatigue, training-plan effects, and per-player injury probability are
+deferred.
+
+\subsection{Clean-up of FootballSeason.resolveLineup}
+
+The initial version of \code{FootballSeason.resolveLineup} contained
+dead branches: after narrowing the team to a \code{FootballTeam}, a second
+generic branch built a list of available players that was never used and
+then threw unconditionally. Both were removed. The method now fails
+fast if a non-football team is passed in, which matches the intent of a
+football-specific season class.
+
+\subsection{FootballTeam.addPlayer overload removed}
+
+\code{FootballTeam} previously defined both
+\code{addPlayer(Player)} (the overriding method) and
+\code{addPlayer(FootballPlayer)} (a convenience overload that just cast
+and re-dispatched). The overload was redundant because Java's overload
+resolution picks the overriding method for any \code{FootballPlayer}
+argument. It has been deleted.
+
+\subsection{Demo renamed and decoupled}
+
+The runnable demo is now \code{FootballConsoleDemo}. \code{Main} imports
+it directly, so the \code{mvn exec:java} entry point no longer runs through
+a class named ``Bootstrap''. The demo itself contains no football rules
+and simply drives the application layer.
+
+% ========================= 4. TESTING =========================
+\section{Testing Strategy and Test Inventory}
+
+The minimum requirement is twenty meaningful tests. The project ships
+with \textbf{76}, spread across eighteen test classes. None of them are
+null-only checks; each verifies a specific behaviour or invariant of
+the code under test.
+
+\subsection{Coverage by Package}
+
+\begin{longtable}{lrl}
+    \toprule
+    \textbf{Test class} & \textbf{\#} & \textbf{Focus} \\
+    \midrule
+    \endhead
+    \code{GameSessionTest}                  & 4  & Session wiring and progression state \\
+    \code{FixtureTest}                      & 5  & Fixture construction and match attachment \\
+    \code{FootballPlayerTest}               & 3  & Position, attribute profile, injury flow \\
+    \code{FootballTeamTest}                 & 5  & Roster, lineup, tactic, training plan \\
+    \code{FootballDataObjectsTest}          & 3  & Lineup, tactic, training plan invariants \\
+    \code{FootballRulesetValidationTest}    & 5  & Lineup size, duplicates, availability \\
+    \code{FootballPointsCalculationTest}    & 2  & Points on win/draw/loss \\
+    \code{FootballStandingsPolicyTest}      & 2  & Standings update and ordering \\
+    \code{RoundRobinFootballSchedulerTest}  & 4  & Fixture count, pairings, home/away balance \\
+    \code{FootballSeasonTest}               & 4  & Weekly advance, replay prevention, completion \\
+    \code{FootballSportFactoryTest}         & 4  & League creation, team population, season wrap \\
+    \code{FootballMatchTest}                & 6  & Match state, setup storage, replay rejection \\
+    \code{FootballMatchEngineTest}          & 9  & Determinism, validation, stateless behaviour \\
+    \code{FootballInjuryPolicyTest}         & 9  & Injury application, recovery, lineup rejection \\
+    \code{EndToEndFootballFlowTest}         & 1  & Full season flow, bookkeeping invariants \\
+    \code{InMemoryAssetProviderTest}        & 6  & Name, team, and logo data integrity \\
+    \code{GameInitializationServiceTest}    & 3  & Session creation end-to-end through service \\
+    \code{MainTest}                         & 1  & \code{Main.main} runs without throwing \\
+    \midrule
+    \textbf{Total}                          & \textbf{76} & \\
+    \bottomrule
+\end{longtable}
+
+\subsection{What the Tests Actually Check}
+
+A few examples of the kind of behaviour we verify, rather than just
+presence or non-nullness:
+
+\begin{itemize}
+    \item \emph{Double round-robin invariants.} For a four-team league we
+          assert exactly twelve fixtures, every team pair appears twice,
+          no team plays itself, and each team has an equal number of home
+          and away games.
+    \item \emph{Standings bookkeeping.} The end-to-end test plays through
+          a full season and asserts league-wide consistency: total goals
+          for equals total goals against, total wins equals total losses,
+          total draws is even, and the points total equals
+          $3 \times \text{wins} + \text{draws}$.
+    \item \emph{Match engine determinism.} Simulating the same pairing
+          twice with a fresh engine yields the same score; simulating a
+          different pairing in between does not shift the first result
+          (the engine keeps no state).
+    \item \emph{Replay prevention.} Calling \code{simulate} on a match
+          that already has a result is a no-op; the stored result is
+          untouched.
+    \item \emph{Injury-availability link.} After a lost match, the losing
+          team's stored lineup is cleared, one starter becomes unavailable,
+          the ruleset rejects any lineup containing that player, and the
+          recovery countdown decrements the remaining matches on every
+          subsequent week until the player is available again.
+\end{itemize}
+
+% ========================= 5. SIMPLIFICATIONS =========================
+\section{Known Simplifications and Deferred Work}
+
+A few pieces of the M1 design are modelled in code but are intentionally
+not yet wired into the simulation loop. They are listed here so the
+grader and future milestones know the difference between implemented
+behaviour and scaffolding.
+
+\begin{itemize}
+    \item \code{FootballAttributeProfile} (attack, defence, stamina,
+          passing, speed) is attached to every generated player but the
+          match engine does not yet consult it. Scores depend only on the
+          deterministic seed.
+    \item \code{FootballTrainingPlan} (focus, intensity, conditioning
+          load, tactical load, recovery flag) is assigned to teams during
+          generation, but the weekly ``Apply Training Plan'' step from
+          Workflow~2 is not yet implemented. There are no training effects
+          on player attributes or injury probability in M2.
+    \item \code{FootballCoach} fields (specialisation, coaching rating)
+          are stored but unused. Coaching bonuses will be introduced
+          when training and attribute-driven simulation are added.
+    \item The league format is fixed to a double round-robin. Cups, playoffs,
+          and multi-division leagues are out of scope for M2.
+    \item The ``future-season continuation hook'' mentioned in the task
+          division is implemented at the stub level: \code{FootballSeason}
+          exposes \code{canCreateNextSeason} and \code{createNextSeasonStub}
+          which produce a fresh season carrying over the same teams. A full
+          off-season flow is deferred.
+    \item The user interface is not part of M2. Only the console demo
+          is implemented. JavaFX screens are scheduled for M3.
+\end{itemize}
+
+% ========================= 6. RUN =========================
+\section{How to Run the Project}
+
+The grader runs \code{mvn exec:java} and \code{mvn test} on a fresh
+clone. Both work without any changes to \code{pom.xml} or command-line
+arguments.
+
+\subsection{Prerequisites}
+
+\begin{itemize}
+    \item Java 17 or newer (the project targets Java 17).
+    \item Apache Maven 3.8 or newer.
+\end{itemize}
+
+\subsection{Commands}
+
+From the project root:
+
+\begin{lstlisting}[language=bash]
+git clone https://github.com/mirzaisi/CE216_Project_Team_JavaIsSlow.git
+cd CE216_Project_Team_JavaIsSlow
+
+mvn compile
+mvn test
+mvn exec:java
+\end{lstlisting}
+
+The main class is declared in \code{pom.xml} via the exec plugin as
+\code{com.playforgemanager.main.Main}, so no manual main-class selection
+is needed.
+
+\subsection{Expected Console Output}
+
+Running \code{mvn exec:java} prints a short demo of a freshly initialised
+football league. One week is simulated and the results, standings, and
+next-week marker are printed. The exact output begins with:
+
+\begin{lstlisting}
+=== PlayForge Manager - M2 Demo ===
+Sport: Football
+League: PlayForge Demo League
+Controlled Team: Red Hawks
+
+Generated Teams
+---------------
+- Red Hawks       | Players: 18 | Coaches: 1
+- Blue Wolves     | Players: 18 | Coaches: 1
+- Golden Stars    | Players: 18 | Coaches: 1
+- Iron Lions      | Players: 18 | Coaches: 1
+
+Total fixtures generated: 12
+
+Week 1 Results
+----------------
+...
+\end{lstlisting}
+
+Running \code{mvn test} should report
+\code{Tests run: 76, Failures: 0, Errors: 0, Skipped: 0}.
+
+% ========================= 7. RELEASE =========================
+\section{Release Notes}
+
+Before the deadline of 12 April 2026 a GitHub Release will be tagged on
+the \code{main} branch of the repository and will capture the same
+commit that corresponds to this report. The release will contain:
+
+\begin{itemize}
+    \item The complete Maven project (source code, tests, \code{pom.xml}).
+    \item This milestone report (PDF).
+    \item The \code{repo\_url.txt} file carrying the repository URL.
+\end{itemize}
+
+The repository URL, also the content of the submitted TXT file, is:
+
+\begin{center}
+    \url{https://github.com/mirzaisi/CE216_Project_Team_JavaIsSlow}
+\end{center}
+
+% ========================= 8. CONTRIBUTIONS =========================
+\section{Team Contributions}
+
+The division of work for M2 follows the updated task division for this
+milestone. A short summary is given below for review convenience.
+
+\begin{longtable}{ll}
+    \toprule
+    \textbf{Member}  & \textbf{M2 focus} \\
+    \midrule
+    \endhead
+    Mirza İşi         & Project setup, shared framework, bootstrap flow, architecture check \\
+    Sepehr Rahimi     & Football players, teams, ruleset, lineup and rules validation tests \\
+    Doruk Faydalı     & Scheduler, standings, season progression, league integration pass   \\
+    Çağan Parlapan    & Match engine, injury policy, asset provider, end-to-end verification, milestone report \\
+    \bottomrule
+\end{longtable}
+
+% ========================= 9. AI DECLARATION =========================
+\section*{Declaration on the Use of AI Assistance}
+\addcontentsline{toc}{section}{Declaration on the Use of AI Assistance}
+
+Consistent with the M1 declaration, AI-based tools were used in a
+limited support role during M2. Specifically, they assisted with
+structural review, wording of this report, and drafting of Java doc
+comments. The design decisions, implementation, test content, and
+submitted material remain the responsibility of the team.
+
+\end{document}

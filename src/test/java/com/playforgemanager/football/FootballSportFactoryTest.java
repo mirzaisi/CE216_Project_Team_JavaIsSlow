@@ -14,13 +14,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class FootballSportFactoryTest {
 
     @Test
-    void createLeagueBuildsBootstrapLeagueWithExpectedNumberOfTeams() {
+    void createLeagueBuildsFootballLeagueWithExpectedNumberOfTeams() {
         FootballSportFactory factory = new FootballSportFactory(new FakeAssetProvider(), 4);
 
-        League league = factory.createLeague("Bootstrap League");
+        League league = factory.createLeague("Test League");
 
         assertInstanceOf(FootballLeague.class, league);
-        assertEquals("Bootstrap League", league.getName());
+        assertEquals("Test League", league.getName());
         assertEquals(4, league.getTeamCount());
         assertEquals("Red Hawks", league.getTeams().get(0).getName());
     }
@@ -29,7 +29,7 @@ class FootballSportFactoryTest {
     void createLeaguePopulatesEachTeamWithPlayers() {
         FootballSportFactory factory = new FootballSportFactory(new FakeAssetProvider(), 4);
 
-        League league = factory.createLeague("Bootstrap League");
+        League league = factory.createLeague("Test League");
 
         for (int i = 0; i < league.getTeams().size(); i++) {
             assertEquals(18, league.getTeams().get(i).getRoster().size());
@@ -39,7 +39,7 @@ class FootballSportFactoryTest {
     @Test
     void createSeasonWrapsProvidedLeague() {
         FootballSportFactory factory = new FootballSportFactory(new FakeAssetProvider(), 4);
-        League league = factory.createLeague("Bootstrap League");
+        League league = factory.createLeague("Test League");
 
         Season season = factory.createSeason(league);
 
