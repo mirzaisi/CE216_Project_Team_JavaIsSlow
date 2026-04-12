@@ -71,4 +71,18 @@ class FixtureTest {
                 fixture.attachPlayedMatch(wrongMatch)
         );
     }
+
+    @Test
+    void attachPlayedMatchRejectsUnplayedMatch() {
+        Team home = new FootballTeam("team-1", "Red Hawks");
+        Team away = new FootballTeam("team-2", "Blue Wolves");
+
+        Fixture fixture = new Fixture(1, home, away);
+        Match unplayedMatch = new FootballMatch(home, away);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                fixture.attachPlayedMatch(unplayedMatch)
+        );
+        assertFalse(fixture.isPlayed());
+    }
 }

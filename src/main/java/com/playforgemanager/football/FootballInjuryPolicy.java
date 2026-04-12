@@ -6,14 +6,18 @@ import com.playforgemanager.core.Match;
 import com.playforgemanager.core.Player;
 import com.playforgemanager.core.Team;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public class FootballInjuryPolicy implements InjuryPolicy {
 
     private static final int DEFAULT_DURATION = 2;
 
     private final int injuryDurationMatches;
+    private final Set<Player> newlyInjuredPlayers;
 
     public FootballInjuryPolicy() {
         this(DEFAULT_DURATION);
@@ -24,6 +28,7 @@ public class FootballInjuryPolicy implements InjuryPolicy {
             throw new IllegalArgumentException("Injury duration must be positive.");
         }
         this.injuryDurationMatches = injuryDurationMatches;
+        this.newlyInjuredPlayers = Collections.newSetFromMap(new IdentityHashMap<>());
     }
 
     @Override
@@ -54,8 +59,9 @@ public class FootballInjuryPolicy implements InjuryPolicy {
         Player victim = starters.get(index);
         if (victim != null && victim.getInjuryMatchesRemaining() == 0) {
             victim.injureForMatches(injuryDurationMatches);
+            newlyInjuredPlayers.add(victim);
 
-            // stored lineup now contains an injured player; drop it so the
+            // stored lineup contains an injured player, drop it so the
             // next week picks a fresh one from whoever is still available
             targetTeam.setSelectedLineup(null);
         }
@@ -67,6 +73,9 @@ public class FootballInjuryPolicy implements InjuryPolicy {
 
         for (Player player : team.getRoster()) {
             if (player.getInjuryMatchesRemaining() > 0) {
+                if (newlyInjuredPlayers.remove(player)) {
+                    continue;
+                }
                 player.recoverOneMatch();
             }
         }

@@ -14,6 +14,8 @@
 \usepackage{listings}
 \usepackage{fancyhdr}
 \usepackage[hidelinks]{hyperref}
+\usepackage{amsmath}
+\usepackage{graphicx}
 
 % header / footer
 \pagestyle{fancy}
@@ -53,6 +55,12 @@
     {\large CE 216 -- Fundamental Topics in Programming \par}
     \vspace{0.4cm}
     {\normalsize Associate Prof.\ Dr.\ Kaya Oğuz \par}
+    \vspace{0.8cm}
+
+    \IfFileExists{logo.png}{%
+        \includegraphics[width=0.44\textwidth]{logo.png}\par
+        \vspace{0.8cm}
+    }{}
 
     \vfill
 
@@ -84,7 +92,7 @@
 
 This document accompanies the Milestone \#2 submission of PlayForge Manager.
 The goal of M2 is to translate the M1 design into a working Java project
-with a complete abstraction layer, a first concrete sport (football),
+with a complete abstraction layer, a first concrete sport,
 a minimal runnable simulation, and a focused unit-test suite that proves
 the foundations are sound.
 
@@ -93,10 +101,10 @@ The expected deliverables, following the assignment instructions, are:
     \item A Maven project that builds and tests cleanly from a fresh clone.
     \item A runnable entry point reachable via \code{mvn exec:java}.
     \item A minimum of twenty meaningful unit tests. The project ships with
-          \textbf{76}, covering every major abstraction and policy.
+          \textbf{88}, covering every major abstraction and policy.
     \item This milestone report (PDF) describing what was built and what
           changed from the M1 design.
-    \item A GitHub Release tagged before the 12 April 2026 deadline.
+    \item A GitHub Release created from the final submission commit.
     \item A TXT file containing the repository URL.
 \end{itemize}
 
@@ -131,8 +139,10 @@ anything from the football module.
 
 \subsection{Shared Abstractions (Core Layer)}
 
-All twenty abstractions listed in Table~5.1 of the M1 design are
-implemented:
+All nineteen abstractions listed in Table~5.1 of the M1 design are
+implemented. The code also defines \code{ProgressionState} as a small
+implementation enum used by \code{GameSession}; it is not counted as one
+of the Table~5.1 abstractions.
 
 \begin{longtable}{ll}
     \toprule
@@ -158,33 +168,36 @@ implemented:
     \code{StandingsPolicy}    & interface                              \\
     \code{InjuryPolicy}       & interface                              \\
     \code{AssetProvider}      & interface                              \\
-    \code{ProgressionState}   & enum                                   \\
     \bottomrule
 \end{longtable}
 
 \subsection{Football Module}
 
-The football package provides one concrete class per core abstraction,
-matching Table~6.1 of the M1 design. The module contains:
+The football package provides concrete implementations for the football
+roles from the M1 design. The scheduler role is implemented by
+\code{RoundRobinFootballScheduler}, a more explicit name for the double
+round-robin scheduler described in the design. The module contains:
 
 \begin{itemize}
     \item \code{FootballSport}, \code{FootballSportFactory} -- composition
           root and creation entry point.
-    \item \code{FootballRuleset} -- scoring, lineup limits, bench size,
-          points logic, and availability checks.
+    \item \code{FootballRuleset} -- scoring, the fixed 1 goalkeeper /
+          4 defender / 4 midfielder / 2 forward starting-lineup policy,
+          bench size, points logic, and availability checks.
     \item \code{RoundRobinFootballScheduler} -- double round-robin fixture
           generator.
     \item \code{FootballLeague}, \code{FootballSeason} -- competition
           containers and week-by-week progression.
     \item \code{FootballStandingsPolicy}, \code{FootballStandingRow} --
-          league table calculation with tie-breaking.
+          recorded-match bookkeeping and league table calculation with
+          tie-breaking.
     \item \code{FootballMatch}, \code{FootballMatchEngine} -- match entity
           and the stateless engine that produces results.
     \item \code{FootballInjuryPolicy} -- post-match injury application and
-          weekly recovery countdown.
+          future-match recovery countdown.
     \item \code{FootballTeam}, \code{FootballPlayer}, \code{FootballCoach},
-          \code{FootballLineup}, \code{FootballTactic}, \code{FootballTrainingPlan}
-          -- football realisations of the core entities.
+          \code{FootballLineup}, 
+          \code{FootballTactic}, \code{FootballTrainingPlan}--football realisations of the core entities.
     \item \code{FootballAttributeProfile}, \code{FootballPosition} --
           composed pieces of football-specific player data.
     \item \code{FootballConsoleDemo} -- thin console runner used by
@@ -216,14 +229,16 @@ classes alongside the canonical ones. These had been created during the
 M1 transition so the project always compiled, and were used by some
 tests as lightweight stand-ins for the real types.
 
-Before submission these nine classes were deleted
+But later, these nine classes were deleted
 (\code{BootstrapFootballLeague}, \code{Season}, \code{Team}, \code{Player},
 \code{Coach}, \code{Lineup}, \code{Match}, \code{Scheduler},
 \code{Tactic}), the console demo was renamed from
 \code{BootstrapFootballConsoleDemo} to \code{FootballConsoleDemo}, and the
 tests that referenced the bootstrap types were migrated onto the canonical
 football classes. The reason was to remove duplication and make the code
-match the class names from Table~6.1 of the M1 design one-to-one.
+match the M1 football roles directly. The scheduler implementation keeps
+the more specific name \code{RoundRobinFootballScheduler} because M2 fixes
+the league format to a double round-robin.
 
 \subsection{FootballMatchEngine and FootballInjuryPolicy extracted}
 
@@ -258,8 +273,10 @@ minimal, deterministic model:
           the hit. The player is selected by a deterministic index derived
           from the final scoreline so the rule is reproducible in tests.
     \item Injured players are unavailable for a configurable number of
-          matches (default: two). At the end of each week the policy's
-          \code{recoverPlayers} method ticks the countdown down by one.
+          future match opportunities (default: two). A player injured in
+          the current played week is not decremented by that same week's
+          recovery pass; the countdown ticks down after later missed
+          match weeks.
     \item The football ruleset rejects any lineup that contains an
           unavailable player, so injured players cannot be selected.
     \item When a player is injured, the affected team's stored lineup is
@@ -269,9 +286,26 @@ minimal, deterministic model:
           policy to the season flow.
 \end{itemize}
 
-This model is documented here as a deliberate simplification. Stamina,
-fatigue, training-plan effects, and per-player injury probability are
-deferred.
+This model is documented here as a deliberate simplification.
+
+\subsection{Football lineup policy made explicit}
+
+This code uses one deterministic starting-lineup composition everywhere:
+1 goalkeeper, 4 defenders, 4 midfielders, and 2 forwards. The football
+factory and the season's automatic lineup resolution both build this
+shape through \code{FootballRuleset}, and the ruleset rejects starting
+elevens with extra goalkeepers, missing forwards, or any other positional
+composition. Generated squads contain nineteen players so a two-match
+injury window has enough reserve depth by position.
+
+\subsection{Standings and core invariants tightened}
+
+\code{FootballStandingsPolicy.recordMatch} now records played matches so
+standings can change through the policy method as well as through fixture
+recomputation. The table recomputation path skips duplicate match objects,
+so a scheduled match recorded through both paths is counted once. The core
+\code{League} and \code{Fixture} classes now reject duplicate team IDs,
+fixtures with non-member teams, and attempts to attach an unplayed match.
 
 \subsection{Clean-up of FootballSeason.resolveLineup}
 
@@ -286,7 +320,7 @@ football-specific season class.
 
 \code{FootballTeam} previously defined both
 \code{addPlayer(Player)} (the overriding method) and
-\code{addPlayer(FootballPlayer)} (a convenience overload that just cast
+\code{addPlayer(\allowbreak FootballPlayer)} (a convenience overload that just cast
 and re-dispatched). The overload was redundant because Java's overload
 resolution picks the overriding method for any \code{FootballPlayer}
 argument. It has been deleted.
@@ -302,7 +336,7 @@ and simply drives the application layer.
 \section{Testing Strategy and Test Inventory}
 
 The minimum requirement is twenty meaningful tests. The project ships
-with \textbf{76}, spread across eighteen test classes. None of them are
+with \textbf{88}, spread across nineteen test classes. None of them are
 null-only checks; each verifies a specific behaviour or invariant of
 the code under test.
 
@@ -314,32 +348,32 @@ the code under test.
     \midrule
     \endhead
     \code{GameSessionTest}                  & 4  & Session wiring and progression state \\
-    \code{FixtureTest}                      & 5  & Fixture construction and match attachment \\
+    \code{FixtureTest}                      & 6  & Fixture construction and match attachment \\
+    \code{LeagueTest}                       & 3  & Team and fixture membership invariants \\
     \code{FootballPlayerTest}               & 3  & Position, attribute profile, injury flow \\
     \code{FootballTeamTest}                 & 5  & Roster, lineup, tactic, training plan \\
     \code{FootballDataObjectsTest}          & 3  & Lineup, tactic, training plan invariants \\
-    \code{FootballRulesetValidationTest}    & 5  & Lineup size, duplicates, availability \\
+    \code{FootballRulesetValidationTest}    & 7  & Lineup size, positions, duplicates, availability \\
     \code{FootballPointsCalculationTest}    & 2  & Points on win/draw/loss \\
-    \code{FootballStandingsPolicyTest}      & 2  & Standings update and ordering \\
+    \code{FootballStandingsPolicyTest}      & 4  & Standings update, recomputation, ordering \\
     \code{RoundRobinFootballSchedulerTest}  & 4  & Fixture count, pairings, home/away balance \\
-    \code{FootballSeasonTest}               & 4  & Weekly advance, replay prevention, completion \\
-    \code{FootballSportFactoryTest}         & 4  & League creation, team population, season wrap \\
+    \code{FootballSeasonTest}               & 6  & Weekly advance, injuries, lineup resolution, completion \\
+    \code{FootballSportFactoryTest}         & 5  & League creation, team population, lineup generation, season wrap \\
     \code{FootballMatchTest}                & 6  & Match state, setup storage, replay rejection \\
     \code{FootballMatchEngineTest}          & 9  & Determinism, validation, stateless behaviour \\
-    \code{FootballInjuryPolicyTest}         & 9  & Injury application, recovery, lineup rejection \\
+    \code{FootballInjuryPolicyTest}         & 10 & Injury application, recovery, lineup rejection \\
     \code{EndToEndFootballFlowTest}         & 1  & Full season flow, bookkeeping invariants \\
     \code{InMemoryAssetProviderTest}        & 6  & Name, team, and logo data integrity \\
     \code{GameInitializationServiceTest}    & 3  & Session creation end-to-end through service \\
     \code{MainTest}                         & 1  & \code{Main.main} runs without throwing \\
     \midrule
-    \textbf{Total}                          & \textbf{76} & \\
+    \textbf{Total}                          & \textbf{88} & \\
     \bottomrule
 \end{longtable}
 
 \subsection{What the Tests Actually Check}
 
-A few examples of the kind of behaviour we verify, rather than just
-presence or non-nullness:
+A few examples of the kind of behaviour we verify:
 
 \begin{itemize}
     \item \emph{Double round-robin invariants.} For a four-team league we
@@ -350,7 +384,9 @@ presence or non-nullness:
           a full season and asserts league-wide consistency: total goals
           for equals total goals against, total wins equals total losses,
           total draws is even, and the points total equals
-          $3 \times \text{wins} + \text{draws}$.
+          $3 \times \text{wins} + \text{draws}$. Policy-level tests also
+          verify that \code{recordMatch} changes standings and does not
+          double-count a match also present through a fixture.
     \item \emph{Match engine determinism.} Simulating the same pairing
           twice with a fresh engine yields the same score; simulating a
           different pairing in between does not shift the first result
@@ -361,17 +397,20 @@ presence or non-nullness:
     \item \emph{Injury-availability link.} After a lost match, the losing
           team's stored lineup is cleared, one starter becomes unavailable,
           the ruleset rejects any lineup containing that player, and the
-          recovery countdown decrements the remaining matches on every
-          subsequent week until the player is available again.
+          recovery countdown is not decremented in the same played week.
+          The player remains unavailable for the intended future match
+          opportunities and becomes available at the correct later week.
+    \item \emph{Football lineup policy.} Factory-generated and
+          auto-resolved lineups are checked against the 1--4--4--2
+          starting composition, and invalid positional compositions are
+          rejected by the ruleset.
 \end{itemize}
 
 % ========================= 5. SIMPLIFICATIONS =========================
 \section{Known Simplifications and Deferred Work}
 
 A few pieces of the M1 design are modelled in code but are intentionally
-not yet wired into the simulation loop. They are listed here so the
-grader and future milestones know the difference between implemented
-behaviour and scaffolding.
+not yet wired into the simulation loop.
 
 \begin{itemize}
     \item \code{FootballAttributeProfile} (attack, defence, stamina,
@@ -394,20 +433,16 @@ behaviour and scaffolding.
           which produce a fresh season carrying over the same teams. A full
           off-season flow is deferred.
     \item The user interface is not part of M2. Only the console demo
-          is implemented. JavaFX screens are scheduled for M3.
+          is implemented.
 \end{itemize}
 
 % ========================= 6. RUN =========================
 \section{How to Run the Project}
 
-The grader runs \code{mvn exec:java} and \code{mvn test} on a fresh
-clone. Both work without any changes to \code{pom.xml} or command-line
-arguments.
-
 \subsection{Prerequisites}
 
 \begin{itemize}
-    \item Java 17 or newer (the project targets Java 17).
+    \item Java 17 or newer
     \item Apache Maven 3.8 or newer.
 \end{itemize}
 
@@ -425,8 +460,7 @@ mvn exec:java
 \end{lstlisting}
 
 The main class is declared in \code{pom.xml} via the exec plugin as
-\code{com.playforgemanager.main.Main}, so no manual main-class selection
-is needed.
+\code{com.playforgemanager.main.Main}.
 
 \subsection{Expected Console Output}
 
@@ -442,10 +476,10 @@ Controlled Team: Red Hawks
 
 Generated Teams
 ---------------
-- Red Hawks       | Players: 18 | Coaches: 1
-- Blue Wolves     | Players: 18 | Coaches: 1
-- Golden Stars    | Players: 18 | Coaches: 1
-- Iron Lions      | Players: 18 | Coaches: 1
+- Red Hawks       | Players: 19 | Coaches: 1
+- Blue Wolves     | Players: 19 | Coaches: 1
+- Golden Stars    | Players: 19 | Coaches: 1
+- Iron Lions      | Players: 19 | Coaches: 1
 
 Total fixtures generated: 12
 
@@ -455,19 +489,17 @@ Week 1 Results
 \end{lstlisting}
 
 Running \code{mvn test} should report
-\code{Tests run: 76, Failures: 0, Errors: 0, Skipped: 0}.
+\code{Tests run: 88, Failures: 0, Errors: 0, Skipped: 0}.
 
 % ========================= 7. RELEASE =========================
 \section{Release Notes}
 
-Before the deadline of 12 April 2026 a GitHub Release will be tagged on
-the \code{main} branch of the repository and will capture the same
-commit that corresponds to this report. The release will contain:
+A GitHub Release is created from the final commit
+that corresponds to this report. It contains:
 
 \begin{itemize}
     \item The complete Maven project (source code, tests, \code{pom.xml}).
     \item This milestone report (PDF).
-    \item The \code{repo\_url.txt} file carrying the repository URL.
 \end{itemize}
 
 The repository URL, also the content of the submitted TXT file, is:

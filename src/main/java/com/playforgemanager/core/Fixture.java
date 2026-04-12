@@ -50,6 +50,10 @@ public class Fixture {
             throw new IllegalArgumentException("Match teams must match fixture teams.");
         }
 
+        if (!match.isPlayed()) {
+            throw new IllegalArgumentException("Only a played match can be attached to a fixture.");
+        }
+
         this.playedMatch = match;
     }
 

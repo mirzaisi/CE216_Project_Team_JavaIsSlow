@@ -84,6 +84,36 @@ class FootballInjuryPolicyTest {
     }
 
     @Test
+    void recoverPlayersDoesNotDecreaseFreshPostMatchInjuryInSameWeek() {
+        FootballInjuryPolicy policy = new FootballInjuryPolicy(2);
+        FootballTeam home = teamWithPlayers("home", "Red Hawks", 11);
+        FootballTeam away = teamWithPlayers("away", "Blue Wolves", 11);
+        FootballMatch match = matchWithLineups(home, away);
+        match.setResult(0, 1);
+
+        policy.applyPostMatch(match);
+        FootballPlayer injuredPlayer = home.getFootballPlayers().stream()
+                .filter(player -> player.getInjuryMatchesRemaining() > 0)
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(2, injuredPlayer.getInjuryMatchesRemaining());
+        assertFalse(injuredPlayer.isAvailable());
+
+        policy.recoverPlayers(home);
+        assertEquals(2, injuredPlayer.getInjuryMatchesRemaining());
+        assertFalse(injuredPlayer.isAvailable());
+
+        policy.recoverPlayers(home);
+        assertEquals(1, injuredPlayer.getInjuryMatchesRemaining());
+        assertFalse(injuredPlayer.isAvailable());
+
+        policy.recoverPlayers(home);
+        assertEquals(0, injuredPlayer.getInjuryMatchesRemaining());
+        assertTrue(injuredPlayer.isAvailable());
+    }
+
+    @Test
     void recoverPlayersLeavesHealthyPlayersAlone() {
         FootballInjuryPolicy policy = new FootballInjuryPolicy();
         FootballTeam team = teamWithPlayers("home", "Red Hawks", 11);

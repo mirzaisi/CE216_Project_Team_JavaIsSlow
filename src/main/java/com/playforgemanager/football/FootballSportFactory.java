@@ -17,19 +17,20 @@ public class FootballSportFactory implements SportFactory {
             FootballPosition.DEFENDER,
             FootballPosition.DEFENDER,
             FootballPosition.DEFENDER,
+            FootballPosition.DEFENDER,
+            FootballPosition.DEFENDER,
             FootballPosition.MIDFIELDER,
             FootballPosition.MIDFIELDER,
             FootballPosition.MIDFIELDER,
             FootballPosition.MIDFIELDER,
             FootballPosition.MIDFIELDER,
             FootballPosition.MIDFIELDER,
+            FootballPosition.FORWARD,
             FootballPosition.FORWARD,
             FootballPosition.FORWARD,
             FootballPosition.FORWARD,
             FootballPosition.GOALKEEPER,
-            FootballPosition.DEFENDER,
-            FootballPosition.MIDFIELDER,
-            FootballPosition.FORWARD
+            FootballPosition.GOALKEEPER
     };
 
     private static final int DEFAULT_SQUAD_SIZE = DEFAULT_POSITION_PATTERN.length;
@@ -124,21 +125,7 @@ public class FootballSportFactory implements SportFactory {
     private void configureMatchPreparation(FootballTeam team, int teamIndex, FootballRuleset ruleset) {
         team.assignTactic(createDefaultTactic(teamIndex));
         team.assignTrainingPlan(new FootballTrainingPlan("Balanced Development", 60, 58, 52, true));
-
-        List<FootballPlayer> players = team.getFootballPlayers();
-        List<FootballPlayer> starters = players.subList(
-                0,
-                Math.min(ruleset.getStartingLineupSize(), players.size())
-        );
-
-        List<FootballPlayer> bench = players.size() > starters.size()
-                ? players.subList(
-                starters.size(),
-                Math.min(players.size(), starters.size() + ruleset.getBenchSize())
-        )
-                : List.of();
-
-        team.assignLineup(new FootballLineup(starters, bench), ruleset);
+        team.assignLineup(ruleset.buildLineup(team.getFootballPlayers()), ruleset);
     }
 
     private FootballTactic createDefaultTactic(int teamIndex) {

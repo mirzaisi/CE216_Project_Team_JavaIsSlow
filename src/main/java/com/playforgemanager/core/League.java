@@ -33,14 +33,19 @@ public abstract class League {
 
     public void addTeam(Team team) {
         Objects.requireNonNull(team, "Team cannot be null.");
-        if (teams.contains(team)) {
-            throw new IllegalArgumentException("Team is already in the league.");
+        boolean duplicateId = teams.stream()
+                .anyMatch(existing -> existing.getId().equals(team.getId()));
+        if (duplicateId) {
+            throw new IllegalArgumentException("A team with the same id is already in the league.");
         }
         teams.add(team);
     }
 
     public void addFixture(Fixture fixture) {
         Objects.requireNonNull(fixture, "Fixture cannot be null.");
+        if (!teams.contains(fixture.getHomeTeam()) || !teams.contains(fixture.getAwayTeam())) {
+            throw new IllegalArgumentException("Fixture teams must belong to the league.");
+        }
         fixtures.add(fixture);
     }
 

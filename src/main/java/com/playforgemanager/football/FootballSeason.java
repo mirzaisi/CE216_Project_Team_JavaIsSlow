@@ -143,6 +143,12 @@ public class FootballSeason extends Season {
 
         List<FootballPlayer> availablePlayers = footballTeam.getAvailablePlayers();
 
+        if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
+            FootballLineup autoLineup = footballRuleset.buildLineup(availablePlayers);
+            footballTeam.assignLineup(autoLineup, footballRuleset);
+            return autoLineup;
+        }
+
         List<FootballPlayer> starters = availablePlayers.stream()
                 .limit(sport.getRuleset().getStartingLineupSize())
                 .toList();
@@ -163,12 +169,7 @@ public class FootballSeason extends Season {
 
         FootballLineup autoLineup = new FootballLineup(starters, bench);
         validateLineup(autoLineup, sport);
-
-        if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
-            footballTeam.assignLineup(autoLineup, footballRuleset);
-        } else {
-            footballTeam.assignLineup(autoLineup);
-        }
+        footballTeam.assignLineup(autoLineup);
 
         return autoLineup;
     }

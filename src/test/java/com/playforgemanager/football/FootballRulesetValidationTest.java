@@ -100,11 +100,40 @@ class FootballRulesetValidationTest {
     }
 
     @Test
-    void currentM2Ruleset_doesNotRequireAGoalkeeper() {
-        FootballLineup noGoalkeeperLineup = new FootballLineup(createPlayers("OUT", 11, FootballPosition.DEFENDER));
+    void lineupWithoutGoalkeeper_isRejected() {
+        List<FootballPlayer> starters = new ArrayList<>();
+        starters.addAll(createPlayers("DF", 5, FootballPosition.DEFENDER));
+        starters.addAll(createPlayers("MF", 4, FootballPosition.MIDFIELDER));
+        starters.addAll(createPlayers("FW", 2, FootballPosition.FORWARD));
+        FootballLineup noGoalkeeperLineup = new FootballLineup(starters);
 
-        assertTrue(ruleset.isValidLineup(noGoalkeeperLineup));
-        assertDoesNotThrow(() -> ruleset.validateLineupOrThrow(noGoalkeeperLineup));
+        assertFalse(ruleset.isValidLineup(noGoalkeeperLineup));
+        assertThrows(IllegalArgumentException.class, () -> ruleset.validateLineupOrThrow(noGoalkeeperLineup));
+    }
+
+    @Test
+    void lineupWithTwoGoalkeepers_isRejected() {
+        List<FootballPlayer> starters = new ArrayList<>();
+        starters.addAll(createPlayers("GK", 2, FootballPosition.GOALKEEPER));
+        starters.addAll(createPlayers("DF", 4, FootballPosition.DEFENDER));
+        starters.addAll(createPlayers("MF", 4, FootballPosition.MIDFIELDER));
+        starters.add(createPlayer("FW-1", "Forward One", FootballPosition.FORWARD));
+        FootballLineup twoGoalkeeperLineup = new FootballLineup(starters);
+
+        assertFalse(ruleset.isValidLineup(twoGoalkeeperLineup));
+        assertThrows(IllegalArgumentException.class, () -> ruleset.validateLineupOrThrow(twoGoalkeeperLineup));
+    }
+
+    @Test
+    void lineupWithoutForwards_isRejected() {
+        List<FootballPlayer> starters = new ArrayList<>();
+        starters.add(createPlayer("GK-1", "Goalkeeper One", FootballPosition.GOALKEEPER));
+        starters.addAll(createPlayers("DF", 4, FootballPosition.DEFENDER));
+        starters.addAll(createPlayers("MF", 6, FootballPosition.MIDFIELDER));
+        FootballLineup noForwardLineup = new FootballLineup(starters);
+
+        assertFalse(ruleset.isValidLineup(noForwardLineup));
+        assertThrows(IllegalArgumentException.class, () -> ruleset.validateLineupOrThrow(noForwardLineup));
     }
 
     private FootballLineup createStandardValidLineup() {
@@ -115,8 +144,8 @@ class FootballRulesetValidationTest {
         List<FootballPlayer> starters = new ArrayList<>();
         starters.add(createPlayer("GK-1", "Goalkeeper One", FootballPosition.GOALKEEPER));
         starters.addAll(createPlayers("DF", 4, FootballPosition.DEFENDER));
-        starters.addAll(createPlayers("MF", 3, FootballPosition.MIDFIELDER));
-        starters.addAll(createPlayers("FW", 3, FootballPosition.FORWARD));
+        starters.addAll(createPlayers("MF", 4, FootballPosition.MIDFIELDER));
+        starters.addAll(createPlayers("FW", 2, FootballPosition.FORWARD));
         return starters;
     }
 
