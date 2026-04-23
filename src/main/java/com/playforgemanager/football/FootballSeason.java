@@ -33,6 +33,11 @@ public class FootballSeason extends Season {
                 .toList();
     }
 
+    void prepareMatch(Match match, Sport sport) {
+        Objects.requireNonNull(match, "Match cannot be null.");
+        applySelectedSetup(match, match.getHomeTeam(), match.getAwayTeam(), sport);
+    }
+
     public void playCurrentWeek(Sport sport, BiFunction<Team, Team, Match> matchFactory) {
         Objects.requireNonNull(sport, "Sport cannot be null.");
         Objects.requireNonNull(matchFactory, "Match factory cannot be null.");
@@ -60,7 +65,7 @@ public class FootballSeason extends Season {
                     "Match factory cannot return null."
             );
 
-            applySelectedSetup(match, fixture.getHomeTeam(), fixture.getAwayTeam(), sport);
+            prepareMatch(match, sport);
             sport.getMatchEngine().simulate(match, sport.getRuleset());
             fixture.attachPlayedMatch(match);
             sport.getStandingsPolicy().recordMatch(getLeague(), match);

@@ -27,6 +27,7 @@ class GameSessionTest {
         );
 
         assertEquals("Football", session.getActiveSport().getName());
+        assertEquals("football", session.getSelectedSportId());
         assertEquals(season, session.getCurrentSeason());
         assertEquals(team, session.getControlledTeam());
         assertEquals(ProgressionState.READY_TO_START, session.getProgressionState());

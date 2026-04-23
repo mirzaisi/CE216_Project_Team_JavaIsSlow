@@ -1,19 +1,20 @@
 package com.playforgemanager.football;
 
-import com.playforgemanager.application.GameInitializationService;
+import com.playforgemanager.application.WeekProgressionRegistry;
+import com.playforgemanager.application.WeekProgressionResult;
+import com.playforgemanager.application.WeekProgressionService;
 import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.GameSession;
 import com.playforgemanager.core.League;
-import com.playforgemanager.core.SportFactory;
 import com.playforgemanager.core.Team;
 
 import java.util.List;
+import java.util.Objects;
 
 public class FootballConsoleDemo {
 
-    public void run(SportFactory sportFactory, String leagueName) {
-        GameInitializationService initializationService = new GameInitializationService(sportFactory);
-        GameSession session = initializationService.startNewSession(leagueName);
+    public void run(GameSession session) {
+        Objects.requireNonNull(session, "Game session cannot be null.");
         League league = session.getCurrentSeason().getLeague();
 
         if (!(session.getCurrentSeason() instanceof FootballSeason footballSeason)) {
@@ -28,18 +29,17 @@ public class FootballConsoleDemo {
 
         printGeneratedTeams(league);
 
-        List<Fixture> currentWeekFixtures = footballSeason.getCurrentWeekFixtures();
-        int playedWeek = footballSeason.getCurrentWeek();
-        footballSeason.playCurrentWeek(session.getActiveSport(), FootballMatch::new);
+        WeekProgressionService progressionService = new WeekProgressionService(
+                new WeekProgressionRegistry().register("football", new FootballWeekProgressionStrategy())
+        );
+        WeekProgressionResult progressionResult = progressionService.advanceOneStep(session);
 
-        printWeekResults(currentWeekFixtures, playedWeek);
+        printWeekResults(progressionResult.getPlayedFixtures(), progressionResult.getPlayedWeek());
         printStandingsTable(footballSeason.getStandings());
 
-        session.markInProgress();
         System.out.println();
         if (session.getCurrentSeason().isCompleted()) {
             System.out.println("Season completed.");
-            session.markCompleted();
         } else {
             System.out.println("Next week: " + session.getCurrentSeason().getCurrentWeek());
         }
