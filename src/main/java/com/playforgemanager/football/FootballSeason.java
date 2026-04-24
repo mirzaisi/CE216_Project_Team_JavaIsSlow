@@ -107,6 +107,13 @@ public class FootballSeason extends Season {
         return new FootballSeason(nextLeague);
     }
 
+    public void restoreProgress(int currentWeek, boolean completed) {
+        setCurrentWeek(currentWeek);
+        if (completed) {
+            markCompleted();
+        }
+    }
+
     @Override
     protected void doAdvanceWeek() {
         int lastScheduledWeek = getLeague().getFixtures().stream()
