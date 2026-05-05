@@ -7,17 +7,13 @@ import java.util.Objects;
 public class FootballPlayer extends Player {
     private final FootballPosition position;
     private final FootballAttributeProfile attributeProfile;
-
-    private int weeklyAttackModifier;
-    private int weeklyDefenseModifier;
-    private int weeklyStaminaModifier;
-    private int weeklyPassingModifier;
-    private int weeklySpeedModifier;
+    private FootballTrainingEffect weeklyTrainingEffect;
 
     public FootballPlayer(String id, String name, FootballPosition position, FootballAttributeProfile attributeProfile) {
         super(id, name);
         this.position = Objects.requireNonNull(position, "Football position cannot be null.");
         this.attributeProfile = Objects.requireNonNull(attributeProfile, "Attribute profile cannot be null.");
+        this.weeklyTrainingEffect = FootballTrainingEffect.none();
     }
 
     public FootballPosition getPosition() {
@@ -28,31 +24,29 @@ public class FootballPlayer extends Player {
         return attributeProfile;
     }
 
-    public FootballAttributeProfile getEffectiveAttributeProfile() {
-        return new FootballAttributeProfile(
-                clamp(attributeProfile.getAttack() + weeklyAttackModifier),
-                clamp(attributeProfile.getDefense() + weeklyDefenseModifier),
-                clamp(attributeProfile.getStamina() + weeklyStaminaModifier),
-                clamp(attributeProfile.getPassing() + weeklyPassingModifier),
-                clamp(attributeProfile.getSpeed() + weeklySpeedModifier)
+    public FootballTrainingEffect getWeeklyTrainingEffect() {
+        return weeklyTrainingEffect;
+    }
+
+    public void applyWeeklyTrainingEffect(FootballTrainingEffect weeklyTrainingEffect) {
+        this.weeklyTrainingEffect = Objects.requireNonNull(
+                weeklyTrainingEffect,
+                "Weekly training effect cannot be null."
         );
     }
 
     public void clearWeeklyTrainingEffect() {
-        weeklyAttackModifier = 0;
-        weeklyDefenseModifier = 0;
-        weeklyStaminaModifier = 0;
-        weeklyPassingModifier = 0;
-        weeklySpeedModifier = 0;
+        this.weeklyTrainingEffect = FootballTrainingEffect.none();
     }
 
-    public void applyWeeklyTrainingEffect(FootballTrainingEffect effect) {
-        Objects.requireNonNull(effect, "Training effect cannot be null.");
-        weeklyAttackModifier = effect.attackDelta();
-        weeklyDefenseModifier = effect.defenseDelta();
-        weeklyStaminaModifier = effect.staminaDelta();
-        weeklyPassingModifier = effect.passingDelta();
-        weeklySpeedModifier = effect.speedDelta();
+    public FootballAttributeProfile getEffectiveAttributeProfile() {
+        return new FootballAttributeProfile(
+                clamp(attributeProfile.getAttack() + weeklyTrainingEffect.attackDelta()),
+                clamp(attributeProfile.getDefense() + weeklyTrainingEffect.defenseDelta()),
+                clamp(attributeProfile.getStamina() + weeklyTrainingEffect.staminaDelta()),
+                clamp(attributeProfile.getPassing() + weeklyTrainingEffect.passingDelta()),
+                clamp(attributeProfile.getSpeed() + weeklyTrainingEffect.speedDelta())
+        );
     }
 
     private int clamp(int value) {
