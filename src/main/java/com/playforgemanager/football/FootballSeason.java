@@ -16,10 +16,16 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 
 public class FootballSeason extends Season {
+    private final FootballTrainingEffectService trainingEffectService;
     private List<FootballStandingRow> standings;
 
     public FootballSeason(League league) {
+        this(league, new FootballTrainingEffectService());
+    }
+
+    public FootballSeason(League league, FootballTrainingEffectService trainingEffectService) {
         super(league);
+        this.trainingEffectService = Objects.requireNonNull(trainingEffectService, "Training effect service cannot be null.");
         this.standings = buildInitialStandings();
     }
 
@@ -45,7 +51,6 @@ public class FootballSeason extends Season {
         if (isCompleted()) {
             throw new IllegalStateException("Season is already completed.");
         }
-
         if (getLeague().getFixtures().isEmpty()) {
             throw new IllegalStateException("Season has no scheduled fixtures.");
         }
@@ -54,6 +59,8 @@ public class FootballSeason extends Season {
         if (currentWeekFixtures.isEmpty()) {
             throw new IllegalStateException("No fixtures scheduled for week " + getCurrentWeek() + ".");
         }
+
+        applyWeeklyTrainingEffects();
 
         for (Fixture fixture : currentWeekFixtures) {
             if (fixture.isPlayed()) {
@@ -64,7 +71,6 @@ public class FootballSeason extends Season {
                     matchFactory.apply(fixture.getHomeTeam(), fixture.getAwayTeam()),
                     "Match factory cannot return null."
             );
-
             prepareMatch(match, sport);
             sport.getMatchEngine().simulate(match, sport.getRuleset());
             fixture.attachPlayedMatch(match);
@@ -82,11 +88,9 @@ public class FootballSeason extends Season {
 
     public void refreshStandings(StandingsPolicy standingsPolicy) {
         Objects.requireNonNull(standingsPolicy, "Standings policy cannot be null.");
-
         if (!(standingsPolicy instanceof FootballStandingsPolicy footballStandingsPolicy)) {
             throw new IllegalArgumentException("FootballSeason requires FootballStandingsPolicy.");
         }
-
         this.standings = footballStandingsPolicy.calculateTable(getLeague());
     }
 
@@ -103,8 +107,7 @@ public class FootballSeason extends Season {
         for (Team team : getLeague().getTeams()) {
             nextLeague.addTeam(team);
         }
-
-        return new FootballSeason(nextLeague);
+        return new FootballSeason(nextLeague, trainingEffectService);
     }
 
     public void restoreProgress(int currentWeek, boolean completed) {
@@ -125,7 +128,6 @@ public class FootballSeason extends Season {
             markCompleted();
             return;
         }
-
         setCurrentWeek(getCurrentWeek() + 1);
     }
 
@@ -138,6 +140,15 @@ public class FootballSeason extends Season {
     private void applySelectedSetup(Match match, Team homeTeam, Team awayTeam, Sport sport) {
         match.setHomeSetup(resolveLineup(homeTeam, sport), resolveTactic(homeTeam));
         match.setAwaySetup(resolveLineup(awayTeam, sport), resolveTactic(awayTeam));
+    }
+
+    private void applyWeeklyTrainingEffects() {
+        for (Team team : getLeague().getTeams()) {
+            if (!(team instanceof FootballTeam footballTeam)) {
+                throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
+            }
+            trainingEffectService.applyWeeklyTraining(footballTeam);
+        }
     }
 
     private Lineup resolveLineup(Team team, Sport sport) {
@@ -154,7 +165,6 @@ public class FootballSeason extends Season {
         }
 
         List<FootballPlayer> availablePlayers = footballTeam.getAvailablePlayers();
-
         if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
             FootballLineup autoLineup = footballRuleset.buildLineup(availablePlayers);
             footballTeam.assignLineup(autoLineup, footballRuleset);
@@ -164,7 +174,6 @@ public class FootballSeason extends Season {
         List<FootballPlayer> starters = availablePlayers.stream()
                 .limit(sport.getRuleset().getStartingLineupSize())
                 .toList();
-
         if (starters.size() != sport.getRuleset().getStartingLineupSize()) {
             throw new IllegalStateException("Not enough available players for team: " + team.getName());
         }
@@ -173,7 +182,6 @@ public class FootballSeason extends Season {
                 sport.getRuleset().getBenchSize(),
                 Math.max(0, availablePlayers.size() - starters.size())
         );
-
         List<FootballPlayer> bench = availablePlayers.stream()
                 .skip(starters.size())
                 .limit(benchSize)
@@ -182,7 +190,6 @@ public class FootballSeason extends Season {
         FootballLineup autoLineup = new FootballLineup(starters, bench);
         validateLineup(autoLineup, sport);
         footballTeam.assignLineup(autoLineup);
-
         return autoLineup;
     }
 
@@ -191,7 +198,6 @@ public class FootballSeason extends Season {
             footballRuleset.validateLineupOrThrow(lineup);
             return;
         }
-
         if (!sport.getRuleset().isValidLineup(lineup)) {
             throw new IllegalArgumentException("Lineup is invalid for the active ruleset.");
         }
@@ -215,7 +221,6 @@ public class FootballSeason extends Season {
                 55,
                 55
         );
-
         footballTeam.assignTactic(defaultTactic);
         return defaultTactic;
     }

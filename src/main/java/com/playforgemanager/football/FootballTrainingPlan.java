@@ -1,11 +1,22 @@
 package com.playforgemanager.football;
 
 import com.playforgemanager.core.TrainingPlan;
+
+import java.util.Locale;
 import java.util.Objects;
 
 public final class FootballTrainingPlan implements TrainingPlan {
     private static final int MIN_INTENSITY = 0;
     private static final int MAX_INTENSITY = 100;
+
+    public enum FocusType {
+        BALANCED,
+        ATTACKING,
+        DEFENSIVE,
+        FITNESS,
+        POSSESSION,
+        RECOVERY
+    }
 
     private final String focus;
     private final int intensity;
@@ -22,18 +33,53 @@ public final class FootballTrainingPlan implements TrainingPlan {
     }
 
     @Override
-    public String getFocus() { return focus; }
+    public String getFocus() {
+        return focus;
+    }
 
     @Override
-    public int getIntensity() { return intensity; }
+    public int getIntensity() {
+        return intensity;
+    }
 
-    public int getConditioningLoad() { return conditioningLoad; }
-    public int getTacticalLoad() { return tacticalLoad; }
-    public boolean isRecoveryIncluded() { return recoveryIncluded; }
+    public int getConditioningLoad() {
+        return conditioningLoad;
+    }
+
+    public int getTacticalLoad() {
+        return tacticalLoad;
+    }
+
+    public boolean isRecoveryIncluded() {
+        return recoveryIncluded;
+    }
+
+    public FocusType resolveFocusType() {
+        String normalized = focus.toLowerCase(Locale.ROOT).trim();
+
+        if (normalized.contains("recover")) {
+            return FocusType.RECOVERY;
+        }
+        if (normalized.contains("defen") || normalized.contains("compact") || normalized.contains("press resistant")) {
+            return FocusType.DEFENSIVE;
+        }
+        if (normalized.contains("fit") || normalized.contains("condition") || normalized.contains("stamina") || normalized.contains("physical")) {
+            return FocusType.FITNESS;
+        }
+        if (normalized.contains("attack") || normalized.contains("press") || normalized.contains("finish") || normalized.contains("counter")) {
+            return FocusType.ATTACKING;
+        }
+        if (normalized.contains("possess") || normalized.contains("control") || normalized.contains("tactic") || normalized.contains("pass")) {
+            return FocusType.POSSESSION;
+        }
+        return FocusType.BALANCED;
+    }
 
     private String validateText(String value, String message) {
         String cleaned = Objects.requireNonNull(value, message).trim();
-        if (cleaned.isEmpty()) throw new IllegalArgumentException(message);
+        if (cleaned.isEmpty()) {
+            throw new IllegalArgumentException(message);
+        }
         return cleaned;
     }
 
