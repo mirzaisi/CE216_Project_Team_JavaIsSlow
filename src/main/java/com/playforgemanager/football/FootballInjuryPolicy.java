@@ -57,14 +57,20 @@ public class FootballInjuryPolicy implements InjuryPolicy {
         // the same slot (keeps tests stable)
         int index = Math.floorMod(match.getHomeScore() + match.getAwayScore(), starters.size());
         Player victim = starters.get(index);
-        if (victim != null && victim.getInjuryMatchesRemaining() == 0) {
-            victim.injureForMatches(injuryDurationMatches);
-            newlyInjuredPlayers.add(victim);
+        applyInjury(targetTeam, victim, injuryDurationMatches);
+    }
 
-            // stored lineup contains an injured player, drop it so the
-            // next week picks a fresh one from whoever is still available
-            targetTeam.setSelectedLineup(null);
+    public void applyTrainingInjury(Team team, Player player, int durationMatches) {
+        Objects.requireNonNull(team, "Team cannot be null.");
+        Objects.requireNonNull(player, "Player cannot be null.");
+        if (durationMatches <= 0) {
+            throw new IllegalArgumentException("Training injury duration must be positive.");
         }
+        if (!team.getRoster().contains(player)) {
+            throw new IllegalArgumentException("Training injury player must belong to the affected team.");
+        }
+
+        applyInjury(team, player, durationMatches);
     }
 
     @Override
@@ -85,6 +91,14 @@ public class FootballInjuryPolicy implements InjuryPolicy {
         return injuryDurationMatches;
     }
 
+    private void applyInjury(Team team, Player victim, int durationMatches) {
+        if (victim != null && victim.getInjuryMatchesRemaining() == 0) {
+            victim.injureForMatches(durationMatches);
+            newlyInjuredPlayers.add(victim);
+            team.setSelectedLineup(null);
+        }
+    }
+
     private Team pickLosingSide(Match match) {
         if (match.getHomeScore() < match.getAwayScore()) {
             return match.getHomeTeam();
@@ -92,7 +106,6 @@ public class FootballInjuryPolicy implements InjuryPolicy {
         if (match.getAwayScore() < match.getHomeScore()) {
             return match.getAwayTeam();
         }
-        // draw: home side takes the hit
         return match.getHomeTeam();
     }
 }

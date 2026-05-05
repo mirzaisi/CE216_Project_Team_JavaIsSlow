@@ -1,29 +1,60 @@
 package com.playforgemanager.football;
 
+import com.playforgemanager.core.InjuryPolicy;
+
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
 public final class FootballTrainingEffectService {
+    private static final int TRAINING_INJURY_DURATION_MATCHES = 2;
+
     public void applyWeeklyTraining(FootballTeam team) {
+        applyWeeklyTraining(team, new FootballRuleset(), null);
+    }
+
+    public void applyWeeklyTraining(FootballTeam team, FootballRuleset ruleset) {
+        applyWeeklyTraining(team, ruleset, null);
+    }
+
+    public void applyWeeklyTraining(FootballTeam team, FootballRuleset ruleset, InjuryPolicy injuryPolicy) {
         Objects.requireNonNull(team, "Football team cannot be null.");
+        FootballRuleset activeRuleset = ruleset == null ? new FootballRuleset() : ruleset;
 
         List<FootballPlayer> players = team.getFootballPlayers();
         players.forEach(FootballPlayer::clearWeeklyTrainingEffect);
 
         FootballTrainingPlan trainingPlan = team.getSelectedFootballTrainingPlan();
         if (trainingPlan == null) {
+            clearInvalidSelectedLineup(team, activeRuleset);
             return;
         }
 
         FootballTrainingCoachImpact coachImpact = FootballTrainingCoachImpact.from(team.getCoaches(), trainingPlan);
 
         for (FootballPlayer player : players) {
+            boolean injuredAtStart = player.getInjuryMatchesRemaining() > 0;
+            boolean selectableAtStart = player.isAvailable();
+
+            if (injuredAtStart) {
+                FootballTrainingEffect recoveryEffect = buildRecoverySafeEffect(player, trainingPlan, team.getCoaches());
+                player.applyWeeklyTrainingEffect(recoveryEffect);
+                applyRecovery(player, recoveryEffect, coachImpact);
+                continue;
+            }
+
+            if (!selectableAtStart) {
+                player.clearWeeklyTrainingEffect();
+                continue;
+            }
+
             FootballTrainingEffect effect = buildEffect(player, trainingPlan, team.getCoaches());
             player.applyWeeklyTrainingEffect(effect);
-            applyRecovery(player, effect, coachImpact);
         }
+
+        applyIntensityInjuryRisk(team, trainingPlan, injuryPolicy);
+        clearInvalidSelectedLineup(team, activeRuleset);
     }
 
     FootballTrainingEffect buildEffect(FootballPlayer player, FootballTrainingPlan trainingPlan) {
@@ -38,6 +69,28 @@ public final class FootballTrainingEffectService {
         FootballTrainingEffect baseEffect = buildBaseEffect(player, trainingPlan);
         FootballTrainingCoachImpact coachImpact = FootballTrainingCoachImpact.from(coaches, trainingPlan);
         return coachImpact.applyTo(baseEffect, player.getPosition(), trainingPlan.resolveFocusType());
+    }
+
+    private FootballTrainingEffect buildRecoverySafeEffect(
+            FootballPlayer player,
+            FootballTrainingPlan trainingPlan,
+            List<FootballCoach> coaches
+    ) {
+        FootballTrainingEffect fullEffect = buildEffect(player, trainingPlan, coaches);
+        FootballTrainingPlan.FocusType focusType = trainingPlan.resolveFocusType();
+
+        if (focusType == FootballTrainingPlan.FocusType.RECOVERY || trainingPlan.isRecoveryIncluded()) {
+            return new FootballTrainingEffect(
+                    0,
+                    Math.min(1, fullEffect.defenseDelta()),
+                    fullEffect.staminaDelta(),
+                    0,
+                    0,
+                    true
+            );
+        }
+
+        return FootballTrainingEffect.none();
     }
 
     private FootballTrainingEffect buildBaseEffect(FootballPlayer player, FootballTrainingPlan trainingPlan) {
@@ -125,6 +178,75 @@ public final class FootballTrainingEffectService {
 
         for (int i = 0; i < recoverySteps && player.getInjuryMatchesRemaining() > 0; i++) {
             player.recoverOneMatch();
+        }
+    }
+
+    private void applyIntensityInjuryRisk(
+            FootballTeam team,
+            FootballTrainingPlan trainingPlan,
+            InjuryPolicy injuryPolicy
+    ) {
+        int injuryCount = trainingInjuryCount(trainingPlan);
+        if (injuryCount == 0) {
+            return;
+        }
+
+        List<FootballPlayer> candidates = team.getFootballPlayers().stream()
+                .filter(FootballPlayer::isAvailable)
+                .filter(player -> player.getInjuryMatchesRemaining() == 0)
+                .sorted(Comparator
+                        .comparingInt((FootballPlayer player) -> player.getAttributeProfile().getStamina())
+                        .thenComparing(FootballPlayer::getId))
+                .limit(injuryCount)
+                .toList();
+
+        for (FootballPlayer player : candidates) {
+            applyTrainingInjury(team, player, injuryPolicy);
+        }
+    }
+
+    private int trainingInjuryCount(FootballTrainingPlan trainingPlan) {
+        if (trainingPlan.isRecoveryIncluded()
+                || trainingPlan.resolveFocusType() == FootballTrainingPlan.FocusType.RECOVERY) {
+            return 0;
+        }
+
+        if (trainingPlan.getIntensity() >= 95 && trainingPlan.getConditioningLoad() >= 85) {
+            return 2;
+        }
+
+        if (trainingPlan.getIntensity() >= 90
+                || (trainingPlan.getIntensity() >= 85 && trainingPlan.getConditioningLoad() >= 80)) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private void applyTrainingInjury(FootballTeam team, FootballPlayer player, InjuryPolicy injuryPolicy) {
+        player.clearWeeklyTrainingEffect();
+
+        if (injuryPolicy instanceof FootballInjuryPolicy footballInjuryPolicy) {
+            footballInjuryPolicy.applyTrainingInjury(team, player, TRAINING_INJURY_DURATION_MATCHES);
+            return;
+        }
+
+        if (player.getInjuryMatchesRemaining() == 0) {
+            player.injureForMatches(TRAINING_INJURY_DURATION_MATCHES);
+            team.setSelectedLineup(null);
+        }
+    }
+
+    private void clearInvalidSelectedLineup(FootballTeam team, FootballRuleset ruleset) {
+        FootballLineup selectedLineup = team.getSelectedFootballLineup();
+        if (selectedLineup == null) {
+            return;
+        }
+
+        try {
+            ruleset.validateLineupOrThrow(selectedLineup);
+        } catch (RuntimeException ex) {
+            team.setSelectedLineup(null);
         }
     }
 

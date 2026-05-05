@@ -41,6 +41,7 @@ public class FootballSeason extends Season {
 
     void prepareMatch(Match match, Sport sport) {
         Objects.requireNonNull(match, "Match cannot be null.");
+        Objects.requireNonNull(sport, "Sport cannot be null.");
         applySelectedSetup(match, match.getHomeTeam(), match.getAwayTeam(), sport);
     }
 
@@ -60,7 +61,7 @@ public class FootballSeason extends Season {
             throw new IllegalStateException("No fixtures scheduled for week " + getCurrentWeek() + ".");
         }
 
-        applyWeeklyTrainingEffects();
+        applyWeeklyTrainingEffects(sport);
 
         for (Fixture fixture : currentWeekFixtures) {
             if (fixture.isPlayed()) {
@@ -71,6 +72,7 @@ public class FootballSeason extends Season {
                     matchFactory.apply(fixture.getHomeTeam(), fixture.getAwayTeam()),
                     "Match factory cannot return null."
             );
+
             prepareMatch(match, sport);
             sport.getMatchEngine().simulate(match, sport.getRuleset());
             fixture.attachPlayedMatch(match);
@@ -142,12 +144,14 @@ public class FootballSeason extends Season {
         match.setAwaySetup(resolveLineup(awayTeam, sport), resolveTactic(awayTeam));
     }
 
-    private void applyWeeklyTrainingEffects() {
+    private void applyWeeklyTrainingEffects(Sport sport) {
+        FootballRuleset footballRuleset = requireFootballRuleset(sport);
+
         for (Team team : getLeague().getTeams()) {
             if (!(team instanceof FootballTeam footballTeam)) {
                 throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
             }
-            trainingEffectService.applyWeeklyTraining(footballTeam);
+            trainingEffectService.applyWeeklyTraining(footballTeam, footballRuleset, sport.getInjuryPolicy());
         }
     }
 
@@ -164,43 +168,23 @@ public class FootballSeason extends Season {
             return footballTeam.getSelectedLineup();
         }
 
-        List<FootballPlayer> availablePlayers = footballTeam.getAvailablePlayers();
-        if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
-            FootballLineup autoLineup = footballRuleset.buildLineup(availablePlayers);
-            footballTeam.assignLineup(autoLineup, footballRuleset);
-            return autoLineup;
-        }
-
-        List<FootballPlayer> starters = availablePlayers.stream()
-                .limit(sport.getRuleset().getStartingLineupSize())
-                .toList();
-        if (starters.size() != sport.getRuleset().getStartingLineupSize()) {
-            throw new IllegalStateException("Not enough available players for team: " + team.getName());
-        }
-
-        int benchSize = Math.min(
-                sport.getRuleset().getBenchSize(),
-                Math.max(0, availablePlayers.size() - starters.size())
-        );
-        List<FootballPlayer> bench = availablePlayers.stream()
-                .skip(starters.size())
-                .limit(benchSize)
-                .toList();
-
-        FootballLineup autoLineup = new FootballLineup(starters, bench);
-        validateLineup(autoLineup, sport);
-        footballTeam.assignLineup(autoLineup);
+        FootballRuleset footballRuleset = requireFootballRuleset(sport);
+        FootballLineup autoLineup = footballRuleset.buildLineup(footballTeam.getAvailablePlayers());
+        footballTeam.assignLineup(autoLineup, footballRuleset);
         return autoLineup;
     }
 
     private void validateLineup(Lineup lineup, Sport sport) {
-        if (sport.getRuleset() instanceof FootballRuleset footballRuleset) {
-            footballRuleset.validateLineupOrThrow(lineup);
-            return;
+        FootballRuleset footballRuleset = requireFootballRuleset(sport);
+        footballRuleset.validateLineupOrThrow(lineup);
+    }
+
+    private FootballRuleset requireFootballRuleset(Sport sport) {
+        Objects.requireNonNull(sport, "Sport cannot be null.");
+        if (!(sport.getRuleset() instanceof FootballRuleset footballRuleset)) {
+            throw new IllegalArgumentException("FootballSeason requires FootballRuleset.");
         }
-        if (!sport.getRuleset().isValidLineup(lineup)) {
-            throw new IllegalArgumentException("Lineup is invalid for the active ruleset.");
-        }
+        return footballRuleset;
     }
 
     private Tactic resolveTactic(Team team) {
