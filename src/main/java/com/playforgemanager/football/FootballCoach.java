@@ -1,6 +1,7 @@
 package com.playforgemanager.football;
 
 import com.playforgemanager.core.Coach;
+
 import java.util.Objects;
 
 public class FootballCoach extends Coach {
@@ -16,17 +17,30 @@ public class FootballCoach extends Coach {
         this.coachingRating = validateRating(coachingRating);
     }
 
-    public String getSpecialization() { return specialization; }
-    public int getCoachingRating() { return coachingRating; }
+    public String getSpecialization() {
+        return specialization;
+    }
+
+    public int getCoachingRating() {
+        return coachingRating;
+    }
+
+    public int getRating() {
+        return getCoachingRating();
+    }
 
     private String validateSpecialization(String specialization) {
         String value = Objects.requireNonNull(specialization, "Coach specialization cannot be null.").trim();
-        if (value.isEmpty()) throw new IllegalArgumentException("Coach specialization cannot be blank.");
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("Coach specialization cannot be blank.");
+        }
         return value;
     }
 
     private int validateRating(int rating) {
-        if (rating < MIN_RATING || rating > MAX_RATING) throw new IllegalArgumentException("Coaching rating must be between 0 and 100.");
+        if (rating < MIN_RATING || rating > MAX_RATING) {
+            throw new IllegalArgumentException("Coaching rating must be between " + MIN_RATING + " and " + MAX_RATING + ".");
+        }
         return rating;
     }
 }

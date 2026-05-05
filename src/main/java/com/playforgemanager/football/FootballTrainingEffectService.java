@@ -1,6 +1,8 @@
 package com.playforgemanager.football;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 public final class FootballTrainingEffectService {
@@ -15,20 +17,30 @@ public final class FootballTrainingEffectService {
             return;
         }
 
-        for (FootballPlayer player : players) {
-            FootballTrainingEffect effect = buildEffect(player, trainingPlan);
-            player.applyWeeklyTrainingEffect(effect);
+        FootballTrainingCoachImpact coachImpact = FootballTrainingCoachImpact.from(team.getCoaches(), trainingPlan);
 
-            if (effect.acceleratedRecovery() && player.getInjuryMatchesRemaining() > 0) {
-                player.recoverOneMatch();
-            }
+        for (FootballPlayer player : players) {
+            FootballTrainingEffect effect = buildEffect(player, trainingPlan, team.getCoaches());
+            player.applyWeeklyTrainingEffect(effect);
+            applyRecovery(player, effect, coachImpact);
         }
     }
 
     FootballTrainingEffect buildEffect(FootballPlayer player, FootballTrainingPlan trainingPlan) {
+        return buildEffect(player, trainingPlan, List.of());
+    }
+
+    FootballTrainingEffect buildEffect(FootballPlayer player, FootballTrainingPlan trainingPlan, List<FootballCoach> coaches) {
         Objects.requireNonNull(player, "Football player cannot be null.");
         Objects.requireNonNull(trainingPlan, "Football training plan cannot be null.");
+        Objects.requireNonNull(coaches, "Coach list cannot be null.");
 
+        FootballTrainingEffect baseEffect = buildBaseEffect(player, trainingPlan);
+        FootballTrainingCoachImpact coachImpact = FootballTrainingCoachImpact.from(coaches, trainingPlan);
+        return coachImpact.applyTo(baseEffect, player.getPosition(), trainingPlan.resolveFocusType());
+    }
+
+    private FootballTrainingEffect buildBaseEffect(FootballPlayer player, FootballTrainingPlan trainingPlan) {
         int intensityTier = toTier(trainingPlan.getIntensity());
         int conditioningTier = toTier(trainingPlan.getConditioningLoad());
         int tacticalTier = toTier(trainingPlan.getTacticalLoad());
@@ -101,6 +113,21 @@ public final class FootballTrainingEffectService {
         return new FootballTrainingEffect(attack, defense, stamina, passing, speed, acceleratedRecovery);
     }
 
+    private void applyRecovery(FootballPlayer player, FootballTrainingEffect effect, FootballTrainingCoachImpact coachImpact) {
+        if (player.getInjuryMatchesRemaining() <= 0) {
+            return;
+        }
+
+        int recoverySteps = effect.acceleratedRecovery() ? 1 : 0;
+        if (coachImpact.extraRecoveryStep()) {
+            recoverySteps++;
+        }
+
+        for (int i = 0; i < recoverySteps && player.getInjuryMatchesRemaining() > 0; i++) {
+            player.recoverOneMatch();
+        }
+    }
+
     private int toTier(int load) {
         if (load >= 75) {
             return 3;
@@ -121,5 +148,206 @@ public final class FootballTrainingEffectService {
             case 2 -> 2;
             default -> 3;
         };
+    }
+
+    private enum CoachingArea {
+        GENERAL,
+        ATTACKING,
+        DEFENSIVE,
+        FITNESS,
+        POSSESSION,
+        RECOVERY;
+
+        static CoachingArea fromTrainingFocus(FootballTrainingPlan.FocusType focusType) {
+            return switch (focusType) {
+                case ATTACKING -> ATTACKING;
+                case DEFENSIVE -> DEFENSIVE;
+                case FITNESS -> FITNESS;
+                case POSSESSION -> POSSESSION;
+                case RECOVERY -> RECOVERY;
+                case BALANCED -> GENERAL;
+            };
+        }
+
+        static CoachingArea fromSpecialization(String specialization) {
+            String normalized = Objects.requireNonNull(specialization, "Coach specialization cannot be null.")
+                    .toLowerCase(Locale.ROOT)
+                    .trim();
+
+            if (normalized.contains("attack") || normalized.contains("finish") || normalized.contains("press")
+                    || normalized.contains("counter") || normalized.contains("offensive")) {
+                return ATTACKING;
+            }
+            if (normalized.contains("defen") || normalized.contains("compact") || normalized.contains("organiz")) {
+                return DEFENSIVE;
+            }
+            if (normalized.contains("fit") || normalized.contains("condition") || normalized.contains("stamina")
+                    || normalized.contains("physical")) {
+                return FITNESS;
+            }
+            if (normalized.contains("possess") || normalized.contains("control") || normalized.contains("pass")
+                    || normalized.contains("tactic")) {
+                return POSSESSION;
+            }
+            if (normalized.contains("recover") || normalized.contains("medical") || normalized.contains("rehab")) {
+                return RECOVERY;
+            }
+            return GENERAL;
+        }
+    }
+
+    private record FootballTrainingCoachImpact(
+            CoachingArea planArea,
+            CoachingArea coachArea,
+            int rating,
+            boolean exactSpecializationMatch,
+            boolean generalSupport
+    ) {
+        private static FootballTrainingCoachImpact from(List<FootballCoach> coaches, FootballTrainingPlan trainingPlan) {
+            Objects.requireNonNull(coaches, "Coach list cannot be null.");
+            Objects.requireNonNull(trainingPlan, "Football training plan cannot be null.");
+
+            CoachingArea planArea = CoachingArea.fromTrainingFocus(trainingPlan.resolveFocusType());
+
+            FootballCoach bestExactCoach = coaches.stream()
+                    .filter(Objects::nonNull)
+                    .filter(coach -> CoachingArea.fromSpecialization(coach.getSpecialization()) == planArea)
+                    .max(Comparator.comparingInt(FootballCoach::getCoachingRating))
+                    .orElse(null);
+
+            if (bestExactCoach != null) {
+                return new FootballTrainingCoachImpact(planArea, planArea, bestExactCoach.getCoachingRating(), true, false);
+            }
+
+            FootballCoach bestGeneralCoach = coaches.stream()
+                    .filter(Objects::nonNull)
+                    .filter(coach -> CoachingArea.fromSpecialization(coach.getSpecialization()) == CoachingArea.GENERAL)
+                    .max(Comparator.comparingInt(FootballCoach::getCoachingRating))
+                    .orElse(null);
+
+            if (bestGeneralCoach != null) {
+                return new FootballTrainingCoachImpact(planArea, CoachingArea.GENERAL, bestGeneralCoach.getCoachingRating(), false, true);
+            }
+
+            FootballCoach bestAvailableCoach = coaches.stream()
+                    .filter(Objects::nonNull)
+                    .max(Comparator.comparingInt(FootballCoach::getCoachingRating))
+                    .orElse(null);
+
+            if (bestAvailableCoach != null) {
+                return new FootballTrainingCoachImpact(
+                        planArea,
+                        CoachingArea.fromSpecialization(bestAvailableCoach.getSpecialization()),
+                        bestAvailableCoach.getCoachingRating(),
+                        false,
+                        false
+                );
+            }
+
+            return new FootballTrainingCoachImpact(planArea, CoachingArea.GENERAL, 0, false, false);
+        }
+
+        private FootballTrainingEffect applyTo(FootballTrainingEffect baseEffect, FootballPosition position, FootballTrainingPlan.FocusType focusType) {
+            Objects.requireNonNull(baseEffect, "Base training effect cannot be null.");
+            Objects.requireNonNull(position, "Football position cannot be null.");
+            Objects.requireNonNull(focusType, "Training focus type cannot be null.");
+
+            int tier = ratingTier();
+            int specializationBonus = effectiveSpecializationBonus(tier);
+            int attack = baseEffect.attackDelta();
+            int defense = baseEffect.defenseDelta();
+            int stamina = baseEffect.staminaDelta();
+            int passing = baseEffect.passingDelta();
+            int speed = baseEffect.speedDelta();
+            boolean acceleratedRecovery = baseEffect.acceleratedRecovery();
+
+            if (specializationBonus > 0) {
+                switch (planArea) {
+                    case ATTACKING -> {
+                        attack += specializationBonus;
+                        passing += tier >= 2 ? 1 : 0;
+                        speed += tier >= 3 ? 1 : 0;
+                    }
+                    case DEFENSIVE -> {
+                        defense += specializationBonus;
+                        stamina += tier >= 2 ? 1 : 0;
+                        passing += tier >= 3 ? 1 : 0;
+                    }
+                    case FITNESS -> {
+                        stamina += specializationBonus;
+                        speed += tier >= 2 ? 1 : 0;
+                    }
+                    case POSSESSION -> {
+                        passing += specializationBonus;
+                        stamina += tier >= 2 ? 1 : 0;
+                        attack += tier >= 3 ? 1 : 0;
+                    }
+                    case RECOVERY -> {
+                        stamina += Math.max(1, specializationBonus - 1);
+                        defense += tier >= 3 ? 1 : 0;
+                        acceleratedRecovery = acceleratedRecovery || tier >= 2;
+                    }
+                    case GENERAL -> {
+                        attack += tier >= 2 ? 1 : 0;
+                        defense += tier >= 2 ? 1 : 0;
+                        stamina += tier >= 1 ? 1 : 0;
+                        passing += tier >= 2 ? 1 : 0;
+                    }
+                }
+            }
+
+            if (!exactSpecializationMatch && !generalSupport && tier == 0) {
+                attack = Math.max(0, attack - reliabilityPenalty(attack, focusType, FootballTrainingPlan.FocusType.ATTACKING));
+                defense = Math.max(0, defense - reliabilityPenalty(defense, focusType, FootballTrainingPlan.FocusType.DEFENSIVE));
+                stamina = Math.max(0, stamina - reliabilityPenalty(stamina, focusType, FootballTrainingPlan.FocusType.FITNESS));
+                passing = Math.max(0, passing - reliabilityPenalty(passing, focusType, FootballTrainingPlan.FocusType.POSSESSION));
+            }
+
+            switch (position) {
+                case GOALKEEPER -> {
+                    attack = Math.min(attack, 2);
+                    speed = Math.min(speed, 2);
+                }
+                case DEFENDER -> defense += exactSpecializationMatch && planArea == CoachingArea.DEFENSIVE && tier >= 3 ? 1 : 0;
+                case MIDFIELDER -> passing += exactSpecializationMatch && planArea == CoachingArea.POSSESSION && tier >= 3 ? 1 : 0;
+                case FORWARD -> attack += exactSpecializationMatch && planArea == CoachingArea.ATTACKING && tier >= 3 ? 1 : 0;
+            }
+
+            return new FootballTrainingEffect(attack, defense, stamina, passing, speed, acceleratedRecovery);
+        }
+
+        private int ratingTier() {
+            if (rating >= 85) {
+                return 3;
+            }
+            if (rating >= 70) {
+                return 2;
+            }
+            if (rating >= 50) {
+                return 1;
+            }
+            return 0;
+        }
+
+        private int effectiveSpecializationBonus(int tier) {
+            if (exactSpecializationMatch) {
+                return tier;
+            }
+            if (generalSupport) {
+                return Math.min(1, tier);
+            }
+            return 0;
+        }
+
+        private boolean extraRecoveryStep() {
+            return planArea == CoachingArea.RECOVERY && exactSpecializationMatch && rating >= 85;
+        }
+
+        private int reliabilityPenalty(int currentDelta, FootballTrainingPlan.FocusType activeFocus, FootballTrainingPlan.FocusType protectedFocus) {
+            if (currentDelta == 0 || activeFocus == protectedFocus) {
+                return 0;
+            }
+            return 1;
+        }
     }
 }
