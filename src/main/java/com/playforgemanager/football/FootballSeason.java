@@ -4,7 +4,6 @@ import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.League;
 import com.playforgemanager.core.Lineup;
 import com.playforgemanager.core.Match;
-import com.playforgemanager.core.Season;
 import com.playforgemanager.core.Sport;
 import com.playforgemanager.core.StandingsPolicy;
 import com.playforgemanager.core.Tactic;
@@ -15,7 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
 
-public class FootballSeason extends Season {
+public class FootballSeason extends com.playforgemanager.core.Season {
     private final FootballTrainingEffectService trainingEffectService;
     private List<FootballStandingRow> standings;
 
@@ -100,16 +99,48 @@ public class FootballSeason extends Season {
         return isCompleted();
     }
 
-    public FootballSeason createNextSeasonStub() {
-        if (!canCreateNextSeason()) {
-            throw new IllegalStateException("Current season must be completed before creating the next one.");
-        }
+    /**
+     * Creates the next playable football season from a completed season.
+     *
+     * Carry-over decision:
+     * - Teams, player identities, base attributes, coaches, selected tactic, and training plan carry over.
+     * - Fixture results, standings rows, current week, completed state, selected lineups, weekly training effects,
+     *   and short-term injury/availability blocks reset.
+     *
+     * The selected lineup is intentionally cleared because it is a match-week decision and may contain players whose
+     * availability changed near the end of the previous season. The next season will build or accept a fresh lineup
+     * through the normal football rules before the first match.
+     */
+    public FootballSeason createNextSeason(Sport sport) {
+        Objects.requireNonNull(sport, "Sport cannot be null.");
+        requireCompletedForNextSeason();
+        requireFootballRuleset(sport);
 
         FootballLeague nextLeague = new FootballLeague(getLeague().getName());
         for (Team team : getLeague().getTeams()) {
-            nextLeague.addTeam(team);
+            FootballTeam footballTeam = requireFootballTeam(team);
+            prepareTeamForNextSeason(footballTeam);
+            nextLeague.addTeam(footballTeam);
         }
-        return new FootballSeason(nextLeague, trainingEffectService);
+
+        List<Fixture> nextFixtures = sport.getScheduler().generateFixtures(nextLeague.getTeams());
+        if (nextFixtures.isEmpty()) {
+            throw new IllegalStateException("Next football season must contain scheduled fixtures.");
+        }
+        nextLeague.addFixtures(nextFixtures);
+
+        FootballSeason nextSeason = new FootballSeason(nextLeague, trainingEffectService);
+        nextSeason.refreshStandings(sport.getStandingsPolicy());
+        return nextSeason;
+    }
+
+    /**
+     * Kept only for backward compatibility with earlier milestone code.
+     * New code should call createNextSeason(Sport) or FootballSeasonRolloverService.rollOver(...).
+     */
+    @Deprecated
+    public FootballSeason createNextSeasonStub() {
+        return createNextSeason(new FootballSport());
     }
 
     public void restoreProgress(int currentWeek, boolean completed) {
@@ -148,9 +179,7 @@ public class FootballSeason extends Season {
         FootballRuleset footballRuleset = requireFootballRuleset(sport);
 
         for (Team team : getLeague().getTeams()) {
-            if (!(team instanceof FootballTeam footballTeam)) {
-                throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
-            }
+            FootballTeam footballTeam = requireFootballTeam(team);
             trainingEffectService.applyWeeklyTraining(footballTeam, footballRuleset, sport.getInjuryPolicy());
         }
     }
@@ -159,9 +188,7 @@ public class FootballSeason extends Season {
         Objects.requireNonNull(team, "Team cannot be null.");
         Objects.requireNonNull(sport, "Sport cannot be null.");
 
-        if (!(team instanceof FootballTeam footballTeam)) {
-            throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
-        }
+        FootballTeam footballTeam = requireFootballTeam(team);
 
         if (footballTeam.getSelectedLineup() != null) {
             validateLineup(footballTeam.getSelectedLineup(), sport);
@@ -187,12 +214,40 @@ public class FootballSeason extends Season {
         return footballRuleset;
     }
 
-    private Tactic resolveTactic(Team team) {
+    private FootballTeam requireFootballTeam(Team team) {
         Objects.requireNonNull(team, "Team cannot be null.");
-
         if (!(team instanceof FootballTeam footballTeam)) {
             throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
         }
+        return footballTeam;
+    }
+
+    private void requireCompletedForNextSeason() {
+        if (!canCreateNextSeason()) {
+            throw new IllegalStateException("Current season must be completed before creating the next one.");
+        }
+    }
+
+    private void prepareTeamForNextSeason(FootballTeam team) {
+        team.setSelectedLineup(null);
+        for (FootballPlayer player : team.getFootballPlayers()) {
+            resetPlayerForNextSeason(player);
+        }
+    }
+
+    private void resetPlayerForNextSeason(FootballPlayer player) {
+        Objects.requireNonNull(player, "Football player cannot be null.");
+        player.clearWeeklyTrainingEffect();
+        while (player.getInjuryMatchesRemaining() > 0) {
+            player.recoverOneMatch();
+        }
+        player.setAvailable(true);
+    }
+
+    private Tactic resolveTactic(Team team) {
+        Objects.requireNonNull(team, "Team cannot be null.");
+
+        FootballTeam footballTeam = requireFootballTeam(team);
 
         if (footballTeam.getSelectedTactic() != null) {
             return footballTeam.getSelectedTactic();
