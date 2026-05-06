@@ -77,9 +77,11 @@ public class FootballSaveGameRestorer implements SaveGameRestorer {
             FootballTeam homeTeam = requireTeam(teamsById, savedFixture.homeTeamId());
             FootballTeam awayTeam = requireTeam(teamsById, savedFixture.awayTeamId());
             Fixture fixture = new Fixture(savedFixture.week(), homeTeam, awayTeam);
+
             if (savedFixture.playedMatch() != null) {
                 fixture.attachPlayedMatch(restorePlayedMatch(savedFixture.playedMatch(), homeTeam, awayTeam));
             }
+
             league.addFixture(fixture);
         }
 
@@ -89,6 +91,7 @@ public class FootballSaveGameRestorer implements SaveGameRestorer {
     private FootballTeam restoreTeam(SaveTeamData savedTeam) {
         FootballTeam team = new FootballTeam(savedTeam.id(), savedTeam.name());
         Map<String, FootballPlayer> playersById = new LinkedHashMap<>();
+        FootballRuleset ruleset = new FootballRuleset();
 
         for (SavePlayerData savedPlayer : savedTeam.players()) {
             FootballPlayer player = restorePlayer(savedPlayer);
@@ -103,7 +106,8 @@ public class FootballSaveGameRestorer implements SaveGameRestorer {
         }
 
         if (savedTeam.selectedLineup() != null) {
-            team.assignLineup(restoreLineup(savedTeam.selectedLineup(), playersById));
+            FootballLineup lineup = restoreLineup(savedTeam.selectedLineup(), playersById);
+            team.assignLineup(lineup, ruleset);
         }
         if (savedTeam.selectedTactic() != null) {
             team.assignTactic(restoreTactic(savedTeam.selectedTactic()));
@@ -130,13 +134,29 @@ public class FootballSaveGameRestorer implements SaveGameRestorer {
                 )
         );
 
+        restoreAvailability(savedPlayer, player);
+        restoreWeeklyTrainingEffect(properties, player);
+        return player;
+    }
+
+    private void restoreAvailability(SavePlayerData savedPlayer, FootballPlayer player) {
         if (savedPlayer.injuryMatchesRemaining() > 0) {
             player.injureForMatches(savedPlayer.injuryMatchesRemaining());
-        } else {
-            player.setAvailable(savedPlayer.available());
+            return;
         }
+        player.setAvailable(savedPlayer.available());
+    }
 
-        return player;
+    private void restoreWeeklyTrainingEffect(Map<String, String> properties, FootballPlayer player) {
+        FootballTrainingEffect effect = new FootballTrainingEffect(
+                optionalInt(properties, "weeklyTrainingEffect.attackDelta", 0),
+                optionalInt(properties, "weeklyTrainingEffect.defenseDelta", 0),
+                optionalInt(properties, "weeklyTrainingEffect.staminaDelta", 0),
+                optionalInt(properties, "weeklyTrainingEffect.passingDelta", 0),
+                optionalInt(properties, "weeklyTrainingEffect.speedDelta", 0),
+                optionalBoolean(properties, "weeklyTrainingEffect.acceleratedRecovery", false)
+        );
+        player.applyWeeklyTrainingEffect(effect);
     }
 
     private FootballCoach restoreCoach(SaveCoachData savedCoach) {
@@ -259,8 +279,32 @@ public class FootballSaveGameRestorer implements SaveGameRestorer {
         }
     }
 
+    private int optionalInt(Map<String, String> values, String key, int defaultValue) {
+        String value = values.get(key);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Saved football property must be an integer: " + key, exception);
+        }
+    }
+
     private boolean booleanValue(Map<String, String> values, String key) {
         String value = required(values, key);
+        return parseBoolean(value, key);
+    }
+
+    private boolean optionalBoolean(Map<String, String> values, String key, boolean defaultValue) {
+        String value = values.get(key);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        return parseBoolean(value, key);
+    }
+
+    private boolean parseBoolean(String value, String key) {
         if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value)) {
             throw new IllegalArgumentException("Saved football property must be true or false: " + key);
         }
