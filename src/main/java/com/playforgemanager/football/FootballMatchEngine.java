@@ -37,12 +37,12 @@ public class FootballMatchEngine implements MatchEngine {
         FootballLineup homeLineup = requireFootballLineup(match.getHomeLineup(), ruleset, "home");
         FootballLineup awayLineup = requireFootballLineup(match.getAwayLineup(), ruleset, "away");
 
-        TeamStrength homeStrength = TeamStrength.from(homeLineup, match.getHomeTactic());
-        TeamStrength awayStrength = TeamStrength.from(awayLineup, match.getAwayTactic());
+        TeamPlan homePlan = TeamPlan.from(homeLineup, match.getHomeTactic());
+        TeamPlan awayPlan = TeamPlan.from(awayLineup, match.getAwayTactic());
 
         Random rng = new Random(seedFor(match));
-        int homeGoals = scoreGoals(expectedGoals(homeStrength, awayStrength, true), rng);
-        int awayGoals = scoreGoals(expectedGoals(awayStrength, homeStrength, false), rng);
+        int homeGoals = scoreGoals(expectedGoals(homePlan, awayPlan, true), rng);
+        int awayGoals = scoreGoals(expectedGoals(awayPlan, homePlan, false), rng);
 
         homeGoals = clampGoals(homeGoals + seedOffsetHomeAdjustment());
 
@@ -67,7 +67,7 @@ public class FootballMatchEngine implements MatchEngine {
         return footballLineup;
     }
 
-    private double expectedGoals(TeamStrength attackingSide, TeamStrength defendingSide, boolean homeSide) {
+    private double expectedGoals(TeamPlan attackingSide, TeamPlan defendingSide, boolean homeSide) {
         double attackAdvantage = attackingSide.attack() - defendingSide.defense();
         double controlAdvantage = attackingSide.control() - defendingSide.control();
         double fitnessAdvantage = attackingSide.fitness() - defendingSide.fitness();
@@ -75,7 +75,9 @@ public class FootballMatchEngine implements MatchEngine {
         double expectedGoals = BASE_EXPECTED_GOALS
                 + (attackAdvantage * 0.050)
                 + (controlAdvantage * 0.018)
-                + (fitnessAdvantage * 0.010);
+                + (fitnessAdvantage * 0.010)
+                + attackingSide.goalIntent()
+                + defendingSide.riskExposure();
 
         if (homeSide) {
             expectedGoals += HOME_ADVANTAGE_GOALS;
@@ -119,8 +121,29 @@ public class FootballMatchEngine implements MatchEngine {
         return Math.max(0, Math.min(MAX_GOALS, goals));
     }
 
+    private record TeamPlan(double attack, double defense, double control, double fitness,
+                            double goalIntent, double riskExposure) {
+        private static TeamPlan from(FootballLineup lineup, Tactic tactic) {
+            TeamStrength baseStrength = TeamStrength.from(lineup);
+            TacticImpact tacticImpact = TacticImpact.from(tactic);
+
+            return new TeamPlan(
+                    clampRating(baseStrength.attack() + tacticImpact.attackModifier()),
+                    clampRating(baseStrength.defense() + tacticImpact.defenseModifier()),
+                    clampRating(baseStrength.control() + tacticImpact.controlModifier()),
+                    clampRating(baseStrength.fitness() + tacticImpact.fitnessModifier()),
+                    tacticImpact.goalIntent(),
+                    tacticImpact.riskExposure()
+            );
+        }
+
+        private static double clampRating(double rating) {
+            return Math.max(0.0, Math.min(100.0, rating));
+        }
+    }
+
     private record TeamStrength(double attack, double defense, double control, double fitness) {
-        private static TeamStrength from(FootballLineup lineup, Tactic tactic) {
+        private static TeamStrength from(FootballLineup lineup) {
             Objects.requireNonNull(lineup, "Football lineup cannot be null.");
 
             List<FootballPlayer> starters = lineup.getStartingPlayers();
@@ -142,58 +165,180 @@ public class FootballMatchEngine implements MatchEngine {
             }
 
             int size = starters.size();
-            TeamStrength base = new TeamStrength(
+            return new TeamStrength(
                     attackTotal / size,
                     defenseTotal / size,
                     controlTotal / size,
                     fitnessTotal / size
             );
-
-            return base.withTactic(tactic);
         }
+    }
 
-        private TeamStrength withTactic(Tactic tactic) {
+    private record TacticImpact(double attackModifier, double defenseModifier, double controlModifier,
+                                double fitnessModifier, double goalIntent, double riskExposure) {
+        private static final TacticImpact NEUTRAL = new TacticImpact(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+        private static TacticImpact from(Tactic tactic) {
             if (!(tactic instanceof FootballTactic footballTactic)) {
-                return this;
+                return NEUTRAL;
             }
 
             double attackModifier = 0.0;
             double defenseModifier = 0.0;
             double controlModifier = 0.0;
             double fitnessModifier = 0.0;
+            double goalIntent = 0.0;
+            double riskExposure = 0.0;
 
             switch (footballTactic.getMentality()) {
                 case ATTACKING -> {
-                    attackModifier += 5.0;
+                    attackModifier += 6.0;
                     controlModifier += 1.0;
                     defenseModifier -= 2.5;
+                    goalIntent += 0.55;
+                    riskExposure += 0.22;
                 }
                 case DEFENSIVE -> {
-                    defenseModifier += 5.0;
+                    defenseModifier += 6.0;
                     attackModifier -= 2.5;
-                    controlModifier -= 0.5;
+                    controlModifier -= 0.6;
+                    goalIntent -= 0.30;
+                    riskExposure -= 0.20;
                 }
                 case BALANCED -> {
                     attackModifier += 1.0;
                     defenseModifier += 1.0;
+                    controlModifier += 0.6;
                 }
             }
 
-            attackModifier += (footballTactic.getAttackingWidth() - 50) * 0.06;
-            controlModifier += (footballTactic.getAttackingWidth() - 50) * 0.025;
-            defenseModifier += (footballTactic.getPressingIntensity() - 50) * 0.045;
-            fitnessModifier -= Math.max(0, footballTactic.getPressingIntensity() - 70) * 0.035;
+            SliderImpact pressingImpact = pressingImpact(footballTactic.getPressingIntensity());
+            attackModifier += pressingImpact.attackModifier();
+            defenseModifier += pressingImpact.defenseModifier();
+            controlModifier += pressingImpact.controlModifier();
+            fitnessModifier += pressingImpact.fitnessModifier();
+            riskExposure += pressingImpact.riskExposure();
 
-            return new TeamStrength(
-                    clampRating(attack + attackModifier),
-                    clampRating(defense + defenseModifier),
-                    clampRating(control + controlModifier),
-                    clampRating(fitness + fitnessModifier)
+            SliderImpact widthImpact = widthImpact(footballTactic.getAttackingWidth());
+            attackModifier += widthImpact.attackModifier();
+            defenseModifier += widthImpact.defenseModifier();
+            controlModifier += widthImpact.controlModifier();
+            fitnessModifier += widthImpact.fitnessModifier();
+            riskExposure += widthImpact.riskExposure();
+
+            FormationImpact formationImpact = FormationImpact.from(footballTactic.getFormation());
+            attackModifier += formationImpact.attackModifier();
+            defenseModifier += formationImpact.defenseModifier();
+            controlModifier += formationImpact.controlModifier();
+            riskExposure += formationImpact.riskExposure();
+
+            return new TacticImpact(
+                    attackModifier,
+                    defenseModifier,
+                    controlModifier,
+                    fitnessModifier,
+                    clampGoalIntent(goalIntent),
+                    clampRiskExposure(riskExposure)
             );
         }
 
-        private static double clampRating(double rating) {
-            return Math.max(0.0, Math.min(100.0, rating));
+        private static SliderImpact pressingImpact(int pressingIntensity) {
+            double normalized = (pressingIntensity - 50) / 10.0;
+            double attackModifier = normalized * 0.15;
+            double defenseModifier = normalized * 0.55;
+            double controlModifier = normalized * 0.15;
+            double fitnessModifier = -Math.max(0, pressingIntensity - 70) * 0.060;
+            double riskExposure = Math.max(0, pressingIntensity - 75) * 0.006;
+
+            if (pressingIntensity < 35) {
+                defenseModifier -= (35 - pressingIntensity) * 0.040;
+                fitnessModifier += (35 - pressingIntensity) * 0.015;
+            }
+
+            return new SliderImpact(attackModifier, defenseModifier, controlModifier, fitnessModifier, riskExposure);
+        }
+
+        private static SliderImpact widthImpact(int attackingWidth) {
+            double normalized = (attackingWidth - 50) / 10.0;
+            double attackModifier = normalized * 0.45;
+            double defenseModifier = 0.0;
+            double controlModifier = normalized * 0.20;
+            double riskExposure = Math.max(0, attackingWidth - 75) * 0.007;
+
+            if (attackingWidth > 75) {
+                defenseModifier -= (attackingWidth - 75) * 0.045;
+            } else if (attackingWidth < 35) {
+                defenseModifier += (35 - attackingWidth) * 0.035;
+                controlModifier -= (35 - attackingWidth) * 0.025;
+            }
+
+            return new SliderImpact(attackModifier, defenseModifier, controlModifier, 0.0, riskExposure);
+        }
+
+        private static double clampGoalIntent(double value) {
+            return Math.max(-0.45, Math.min(0.75, value));
+        }
+
+        private static double clampRiskExposure(double value) {
+            return Math.max(-0.30, Math.min(0.45, value));
+        }
+    }
+
+    private record SliderImpact(double attackModifier, double defenseModifier, double controlModifier,
+                                double fitnessModifier, double riskExposure) {
+    }
+
+    private record FormationImpact(double attackModifier, double defenseModifier, double controlModifier,
+                                   double riskExposure) {
+        private static final FormationImpact NEUTRAL = new FormationImpact(0.0, 0.0, 0.0, 0.0);
+
+        private static FormationImpact from(String formation) {
+            int[] lines = parseFormation(formation);
+            if (lines.length == 0) {
+                return NEUTRAL;
+            }
+
+            int defenders = lines[0];
+            int forwards = lines[lines.length - 1];
+            int midfielders = 0;
+            for (int i = 1; i < lines.length - 1; i++) {
+                midfielders += lines[i];
+            }
+
+            double attackModifier = (forwards - 2) * 1.40;
+            double defenseModifier = (defenders - 4) * 1.25;
+            double controlModifier = (midfielders - 4) * 0.80;
+            double riskExposure = Math.max(0, forwards - 2) * 0.070 - Math.max(0, defenders - 4) * 0.055;
+
+            return new FormationImpact(attackModifier, defenseModifier, controlModifier, riskExposure);
+        }
+
+        private static int[] parseFormation(String formation) {
+            if (formation == null || formation.isBlank()) {
+                return new int[0];
+            }
+
+            String[] parts = formation.trim().split("-");
+            if (parts.length < 2) {
+                return new int[0];
+            }
+
+            int[] values = new int[parts.length];
+            int totalOutfieldPlayers = 0;
+            for (int i = 0; i < parts.length; i++) {
+                try {
+                    values[i] = Integer.parseInt(parts[i].trim());
+                } catch (NumberFormatException ex) {
+                    return new int[0];
+                }
+
+                if (values[i] < 0) {
+                    return new int[0];
+                }
+                totalOutfieldPlayers += values[i];
+            }
+
+            return totalOutfieldPlayers == 10 ? values : new int[0];
         }
     }
 
