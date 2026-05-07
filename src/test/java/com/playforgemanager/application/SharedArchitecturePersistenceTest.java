@@ -46,7 +46,8 @@ class SharedArchitecturePersistenceTest {
             sourcePath("com", "playforgemanager", "application", "DefaultSportRegistry.java"),
             sourcePath("com", "playforgemanager", "application", "DefaultWeekProgressionRegistry.java"),
             sourcePath("com", "playforgemanager", "application", "DefaultMatchProcessingRegistry.java"),
-            sourcePath("com", "playforgemanager", "application", "save", "DefaultSaveGameRestorationRegistry.java")
+            sourcePath("com", "playforgemanager", "application", "save", "DefaultSaveGameRestorationRegistry.java"),
+            sourcePath("com", "playforgemanager", "application", "setup", "DefaultTeamSetupRegistry.java")
     );
 
     @TempDir
