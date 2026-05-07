@@ -1,0 +1,255 @@
+/* PlayForge Manager — minimal modern theme */
+
+.root {
+    -fx-font-family: "Segoe UI", "Inter", "Helvetica Neue", sans-serif;
+    -fx-font-size: 13px;
+}
+
+.app-root {
+    -fx-background-color: #f5f6f8;
+}
+
+.header {
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent #e3e6ea transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.screen-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #14171a;
+}
+
+.session-label {
+    -fx-text-fill: #5b6470;
+    -fx-font-size: 12px;
+}
+
+.week-label {
+    -fx-text-fill: #14171a;
+    -fx-font-weight: 600;
+    -fx-font-size: 13px;
+    -fx-padding: 6 12 6 12;
+    -fx-background-color: #eef1f5;
+    -fx-background-radius: 999;
+}
+
+.sidebar {
+    -fx-background-color: #1c2330;
+}
+
+.brand {
+    -fx-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+}
+
+.brand-tag {
+    -fx-fill: #93a0b1;
+    -fx-font-size: 11px;
+    -fx-font-weight: 500;
+}
+
+.nav-divider {
+    -fx-text-fill: #6c7989;
+    -fx-font-size: 10px;
+    -fx-font-weight: 600;
+    -fx-padding: 8 0 4 0;
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #c2cad7;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 9 14 9 14;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.nav-button:hover {
+    -fx-background-color: #2a3243;
+    -fx-text-fill: white;
+}
+
+.nav-button:disabled {
+    -fx-opacity: 0.45;
+    -fx-cursor: default;
+}
+
+.nav-button-active {
+    -fx-background-color: #3056d3;
+    -fx-text-fill: white;
+}
+
+.content-scroll {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+}
+
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(20,30,50,0.06), 16, 0, 0, 4);
+}
+
+.section-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #14171a;
+}
+
+.section-subtitle {
+    -fx-text-fill: #5b6470;
+    -fx-font-size: 13px;
+}
+
+.block-header {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #6c7989;
+    -fx-padding: 10 0 4 0;
+}
+
+.field-label {
+    -fx-text-fill: #5b6470;
+    -fx-font-size: 12px;
+    -fx-font-weight: 500;
+}
+
+.hero-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #14171a;
+}
+
+.hero-subtitle {
+    -fx-font-size: 14px;
+    -fx-text-fill: #5b6470;
+}
+
+.muted {
+    -fx-text-fill: #6c7989;
+    -fx-font-size: 12px;
+}
+
+.stat-label {
+    -fx-text-fill: #6c7989;
+    -fx-font-size: 10px;
+    -fx-font-weight: 600;
+}
+
+.stat-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #14171a;
+}
+
+.button-primary {
+    -fx-background-color: #3056d3;
+    -fx-text-fill: white;
+    -fx-font-weight: 600;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+}
+
+.button-primary:hover { -fx-background-color: #2748b3; }
+.button-primary:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+
+.button-secondary {
+    -fx-background-color: #eef1f5;
+    -fx-text-fill: #14171a;
+    -fx-font-weight: 600;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+    -fx-padding: 8 18 8 18;
+}
+
+.button-secondary:hover { -fx-background-color: #dfe4ec; }
+.button-secondary:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+
+.sport-toggle {
+    -fx-background-color: white;
+    -fx-text-fill: #14171a;
+    -fx-font-weight: 600;
+    -fx-background-radius: 8;
+    -fx-border-color: #d5dae3;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+}
+
+.sport-toggle:hover {
+    -fx-background-color: #f5f6f8;
+}
+
+.sport-toggle:selected {
+    -fx-background-color: #3056d3;
+    -fx-text-fill: white;
+    -fx-border-color: #3056d3;
+}
+
+.tactic-button, .tactic-button-active {
+    -fx-alignment: CENTER_LEFT;
+    -fx-background-radius: 6;
+    -fx-padding: 8 14 8 14;
+    -fx-font-weight: 500;
+    -fx-cursor: hand;
+}
+
+.tactic-button {
+    -fx-background-color: #eef1f5;
+    -fx-text-fill: #14171a;
+}
+
+.tactic-button:hover {
+    -fx-background-color: #dfe4ec;
+}
+
+.tactic-button-active {
+    -fx-background-color: #3056d3;
+    -fx-text-fill: white;
+}
+
+.status-ok {
+    -fx-text-fill: #1f8e4d;
+    -fx-font-weight: 600;
+}
+
+.status-warning {
+    -fx-text-fill: #b85b00;
+    -fx-font-weight: 600;
+}
+
+.table-view {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-border-color: #e3e6ea;
+    -fx-border-radius: 8;
+}
+
+.table-view .column-header {
+    -fx-background-color: #f5f6f8;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #6c7989;
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #fbfcfd;
+}
+
+.text-field {
+    -fx-background-color: white;
+    -fx-border-color: #d5dae3;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 8 12 8 12;
+}
+
+.text-field:focused {
+    -fx-border-color: #3056d3;
+}
