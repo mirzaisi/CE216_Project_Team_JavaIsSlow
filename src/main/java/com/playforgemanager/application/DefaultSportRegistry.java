@@ -2,6 +2,7 @@ package com.playforgemanager.application;
 
 import com.playforgemanager.core.AssetProvider;
 import com.playforgemanager.football.FootballSportFactory;
+import com.playforgemanager.handball.HandballSportFactory;
 
 import java.util.Objects;
 
@@ -19,6 +20,11 @@ public final class DefaultSportRegistry {
                         "football",
                         "Football",
                         new FootballSportFactory(assetProvider, DEFAULT_TEAM_COUNT)
+                ))
+                .register(new SportRegistration(
+                        "handball",
+                        "Handball",
+                        new HandballSportFactory(assetProvider, DEFAULT_TEAM_COUNT)
                 ));
     }
 }

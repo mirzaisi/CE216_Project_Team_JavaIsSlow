@@ -101,7 +101,7 @@ public class HandballSeason extends com.playforgemanager.core.Season {
                 .toList();
     }
 
-    private void prepareMatch(Match match, Sport sport) {
+    void prepareMatch(Match match, Sport sport) {
         Objects.requireNonNull(match, "Match cannot be null.");
         Objects.requireNonNull(sport, "Sport cannot be null.");
         match.setHomeSetup(resolveLineup(match.getHomeTeam(), sport), resolveTactic(match.getHomeTeam()));
