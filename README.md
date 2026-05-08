@@ -4,58 +4,62 @@
 
 # PlayForge Manager
 
-PlayForge Manager is a Java-based sports manager game project developed for **CE 216 – Fundamental Topics in Programming**.
+PlayForge Manager is a sports manager game written in Java for the CE 216 course. The idea is that you start a new game, pick a sport, and then run a season as the manager of one of the teams in the league. You set the tactic, pick the lineup, advance through the weeks, and watch the standings shift as the matches play out.
 
-The main idea behind the project is to build a manager-style game that is **not tied to only one sport**. Football is the first sport being implemented, but the system is being designed around shared abstractions so that other sports can be added later without rebuilding the whole project from scratch.
+The project is built so that the sport you play is not baked into the app. Football was the first sport we put in, and Handball is the second one. Adding another sport later should be a matter of writing a new sport module, not rewriting half of the codebase.
 
-At this stage, the project focuses on the **core architecture, foundational classes, and testing infrastructure**. The current goal is to make sure the shared framework is solid, the first sport module can be built on top of it cleanly, and the project runs correctly through Maven.
+## What you can do
 
-## Project goals
+You can start a new game and choose between Football and Handball. After that you get a desktop screen with a sidebar that takes you between the team overview, the squad list, the tactics and lineup screen, the fixture list, the league table, and the match screen. You can save your progress to a file and load it back later. The Tactics screen lets you auto-pick a lineup or switch between a few tactical presets, and the Match screen runs the next match for the team you control. After a match you see the result, the standings impact, and any availability changes for your players.
 
-The project is being developed with a few main goals in mind:
+## Project layout
 
-- keep the design extensible for multiple sports,
-- separate shared game logic from sport-specific behavior,
-- make the code testable and maintainable,
-- and provide a runnable Java application structure that can grow over the semester.
+The code is split into a few packages, each with a clear job:
 
-## Current status
+The `core` package is where the shared abstractions live. Things like `Sport`, `Team`, `Match`, `Lineup`, and `Player` are defined here as interfaces or abstract classes that the rest of the codebase talks to.
 
-This repository is currently in active development as part of the milestone-based course project process.
+The `application` package is the workflow layer. Services like game initialization, weekly progression, match processing, save and load, and the read-only query services for the UI all live here. Anything that wires sports together for the UI goes through this layer.
 
-At the moment, the project includes:
+The `football` and `handball` packages are the actual sport modules. Each one has its own ruleset, scheduler, match engine, season class, factory, and so on. They never talk to the UI directly.
 
-- a Maven-based Java project setup,
-- a layered package structure,
-- shared core abstractions,
-- an initial football bootstrap path,
-- and a basic runnable entry point.
+The `infrastructure` package has the JSON save reader and writer plus the in-memory asset provider that gives us team names and player names.
 
-More functionality, tests, and the full playable flow will be added in later milestones.
+The `ui` package is the JavaFX shell. The screens live in `ui.screens`. The whole UI talks to the application layer only, so it never imports anything from the football or handball packages directly. There is even a small test that fails the build if you try.
 
-## Technologies
+The `main` package keeps a console entry point around for older tests, but the real app starts from `ui.PlayForgeApp`.
 
-- **Java 17**
-- **Maven**
-- **JUnit 5**
+## What you need to run it
 
-## Project structure
+You need Java 17 and Maven. JavaFX comes in as a Maven dependency, so you do not need to install JavaFX separately.
 
-The codebase is organized into a few main parts:
+## Running the app
 
-- `core` – shared abstractions and base classes
-- `application` – startup and workflow coordination
-- `football` – football-specific implementations
-- `infrastructure` – support services and assets
-- `main` – program entry point
+From the project root, run:
 
-This structure is meant to keep the project aligned with the design document and make future extensions easier.
+```
+mvn javafx:run
+```
 
-## How to run
+The first time you run it Maven will download JavaFX and the related plugins, after that it just opens the desktop window. The home screen has buttons to start a new game or load a saved one.
 
-From the project root, use Maven commands in the terminal:
+## Running the tests
 
-```bash
-mvn compile
+```
 mvn test
-mvn exec:java
+```
+
+The test suite covers the shared architecture, the save and load round trip for both sports, the per-sport rulesets and engines, the application-layer services, and a small architecture test that makes sure the UI does not reach into the sport modules by accident.
+
+## Save files
+
+The save format is a small JSON file with the extension `.pfm-save.json`. It carries a format id and a version number so an older or unsupported file is rejected with a readable error instead of crashing.
+
+When you save, the active session, the controlled team, the season state, the fixtures, played matches, lineups, tactics, training plans, and player availability all get written out. When you load, the same state comes back and you continue exactly where you left off.
+
+## How to add another sport later
+
+Drop a new module under `com.playforgemanager.<sport>`, write a `SportFactory`, a `Season`, a `MatchEngine`, a `Ruleset`, an `InjuryPolicy`, a `StandingsPolicy`, and a `Scheduler`, and register it in `DefaultSportRegistry` together with a save restorer in `DefaultSaveGameRestorationRegistry` and a team-setup adapter in `DefaultTeamSetupRegistry`. The UI will pick it up without any changes.
+
+## User manual
+
+A short walkthrough of the screens lives in [USER_MANUAL.md](USER_MANUAL.md).
