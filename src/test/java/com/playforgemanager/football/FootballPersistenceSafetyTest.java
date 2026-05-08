@@ -214,12 +214,12 @@ class FootballPersistenceSafetyTest {
                 "Attacking Play",
                 88
         ));
+        homeTeam.getFootballPlayers().get(18).injureForMatches(2);
+        homeTeam.getFootballPlayers().get(19).setAvailable(false);
         homeTeam.assignLineup(ruleset.buildLineup(homeTeam.getAvailablePlayers()), ruleset);
         homeTeam.getFootballPlayers().get(0).applyWeeklyTrainingEffect(
                 new FootballTrainingEffect(2, 1, 3, 4, 5, true)
         );
-        homeTeam.getFootballPlayers().get(18).injureForMatches(2);
-        homeTeam.getFootballPlayers().get(19).setAvailable(false);
 
         awayTeam.assignTactic(new FootballTactic(
                 "Balanced Control",

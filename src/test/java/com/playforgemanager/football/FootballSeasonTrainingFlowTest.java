@@ -32,7 +32,7 @@ class FootballSeasonTrainingFlowTest {
         FootballLeague league = new FootballLeague("Test League");
         league.addTeam(home);
         league.addTeam(away);
-        league.getFixtures().add(new Fixture(1, home, away));
+        league.addFixture(new Fixture(1, home, away));
 
         AtomicBoolean trainingObserved = new AtomicBoolean(false);
         FootballSeason season = new FootballSeason(league, new FootballTrainingEffectService());
