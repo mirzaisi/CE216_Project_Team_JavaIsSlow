@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class FootballWeekProgressionStrategy implements WeekProgressionStrategy {
+    private final FootballTrainingEffectService trainingEffectService = new FootballTrainingEffectService();
 
     @Override
     public WeekProgressionContext createContext(GameSession session) {
@@ -32,6 +33,22 @@ public class FootballWeekProgressionStrategy implements WeekProgressionStrategy 
         }
 
         return new WeekProgressionContext(season.getCurrentWeek(), currentWeekFixtures);
+    }
+
+    @Override
+    public void applyTraining(GameSession session, WeekProgressionContext context) {
+        FootballSeason season = requireSeason(session);
+        if (context.getScheduledFixtures().stream().anyMatch(Fixture::isPlayed)) {
+            return;
+        }
+
+        Sport sport = Objects.requireNonNull(session, "Game session cannot be null.").getActiveSport();
+        FootballRuleset ruleset = requireFootballRuleset(sport);
+
+        for (Team team : season.getLeague().getTeams()) {
+            FootballTeam footballTeam = requireFootballTeam(team);
+            trainingEffectService.applyWeeklyTraining(footballTeam, ruleset, sport.getInjuryPolicy());
+        }
     }
 
     @Override
@@ -99,5 +116,21 @@ public class FootballWeekProgressionStrategy implements WeekProgressionStrategy 
             throw new IllegalArgumentException("Football progression requires FootballSeason.");
         }
         return footballSeason;
+    }
+
+    private FootballRuleset requireFootballRuleset(Sport sport) {
+        Objects.requireNonNull(sport, "Sport cannot be null.");
+        if (!(sport.getRuleset() instanceof FootballRuleset footballRuleset)) {
+            throw new IllegalArgumentException("Football progression requires FootballRuleset.");
+        }
+        return footballRuleset;
+    }
+
+    private FootballTeam requireFootballTeam(Team team) {
+        Objects.requireNonNull(team, "Team cannot be null.");
+        if (!(team instanceof FootballTeam footballTeam)) {
+            throw new IllegalArgumentException("Football progression requires FootballTeam instances.");
+        }
+        return footballTeam;
     }
 }

@@ -44,7 +44,7 @@ public class FixturesScreen implements UiScreen {
         table.getColumns().add(TableColumns.string("Status", f -> f.played() ? "Played" : "Upcoming"));
         table.getColumns().add(TableColumns.string("Your team",
                 f -> f.controlledTeamInvolved() ? (f.controlledTeamHome() ? "Home" : "Away") : ""));
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setPrefHeight(520);
 
         VBox card = new VBox(12, header, subtitle, table);

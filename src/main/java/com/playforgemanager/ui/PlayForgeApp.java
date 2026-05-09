@@ -13,6 +13,11 @@ public class PlayForgeApp extends Application {
         ScreenRouter router = new ScreenRouter(context, shell);
         context.setRouter(router);
 
+        var logo = UiAssets.loadLogo();
+        if (logo != null) {
+            primaryStage.getIcons().add(logo);
+        }
+
         Scene scene = new Scene(shell.getRoot(), 1200, 760);
         var cssUrl = PlayForgeApp.class.getResource("/css/playforge.css");
         if (cssUrl != null) {

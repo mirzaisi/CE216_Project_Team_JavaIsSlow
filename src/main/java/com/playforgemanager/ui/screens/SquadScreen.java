@@ -40,7 +40,7 @@ public class SquadScreen implements UiScreen {
         table.getColumns().add(TableColumns.string("Role", PlayerSummaryView::roleLabel));
         table.getColumns().add(TableColumns.string("Status", SquadScreen::statusLabel));
         table.getColumns().add(TableColumns.string("In Lineup", p -> p.selectedForCurrentLineup() ? "Yes" : "—"));
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setPrefHeight(440);
 
         VBox card = new VBox(12, header, summary, table);
