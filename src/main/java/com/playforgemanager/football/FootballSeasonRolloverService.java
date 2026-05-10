@@ -7,6 +7,7 @@ import com.playforgemanager.core.Team;
 import java.util.Objects;
 
 public final class FootballSeasonRolloverService {
+
     public GameSession rollOver(GameSession completedSession) {
         Objects.requireNonNull(completedSession, "Completed session cannot be null.");
 
@@ -17,6 +18,7 @@ public final class FootballSeasonRolloverService {
         FootballSeason nextSeason = completedFootballSeason.createNextSeason(completedSession.getActiveSport());
         Team controlledTeam = resolveControlledTeam(nextSeason, completedSession.getControlledTeam());
 
+        // Starts the new session with the carried-over team and a fresh progression state.
         return new GameSession(
                 completedSession.getActiveSport(),
                 nextSeason,
@@ -30,9 +32,15 @@ public final class FootballSeasonRolloverService {
         Objects.requireNonNull(nextSeason, "Next season cannot be null.");
         Objects.requireNonNull(previousControlledTeam, "Previous controlled team cannot be null.");
 
-        return nextSeason.getLeague().getTeams().stream()
-                .filter(team -> team.getId().equals(previousControlledTeam.getId()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Controlled team was not carried into the next season."));
+        String previousControlledTeamId = previousControlledTeam.getId();
+
+        // Finds the same controlled team inside the newly created season.
+        for (Team team : nextSeason.getLeague().getTeams()) {
+            if (team.getId().equals(previousControlledTeamId)) {
+                return team;
+            }
+        }
+
+        throw new IllegalStateException("Controlled team was not carried into the next season.");
     }
 }

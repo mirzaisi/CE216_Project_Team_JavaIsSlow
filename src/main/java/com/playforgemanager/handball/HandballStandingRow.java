@@ -6,6 +6,7 @@ import java.util.Objects;
 
 public class HandballStandingRow {
     private final Team team;
+
     private int played;
     private int wins;
     private int draws;
@@ -30,20 +31,12 @@ public class HandballStandingRow {
         return wins;
     }
 
-    public int getDraws() {
-        return draws;
-    }
-
     public int getLosses() {
         return losses;
     }
 
     public int getGoalsFor() {
         return goalsFor;
-    }
-
-    public int getGoalsAgainst() {
-        return goalsAgainst;
     }
 
     public int getPoints() {
@@ -56,16 +49,20 @@ public class HandballStandingRow {
 
     public void recordMatch(int goalsScored, int goalsConceded, HandballRuleset ruleset) {
         Objects.requireNonNull(ruleset, "Handball ruleset cannot be null.");
+
         played++;
         goalsFor += goalsScored;
         goalsAgainst += goalsConceded;
 
         HandballRuleset.MatchOutcome outcome = ruleset.determineOutcome(goalsScored, goalsConceded);
+
+        // Updates the result counters based on the match outcome.
         switch (outcome) {
             case WIN -> wins++;
             case DRAW -> draws++;
             case LOSS -> losses++;
         }
+
         points += ruleset.getPointsForOutcome(outcome);
     }
 }

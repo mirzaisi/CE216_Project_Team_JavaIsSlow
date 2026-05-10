@@ -26,6 +26,7 @@ public interface WeekProgressionStrategy {
 
     void advanceWeek(GameSession session, WeekProgressionContext context);
 
+    // Default ranking behavior uses the active sport's standings policy.
     default List<Team> rankTeams(GameSession session) {
         return session.getActiveSport()
                 .getStandingsPolicy()

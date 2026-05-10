@@ -1,7 +1,5 @@
 package com.playforgemanager.application;
 
-import com.playforgemanager.core.SportFactory;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -17,39 +15,46 @@ public final class SportRegistry {
         this.registrationsByChoice = new LinkedHashMap<>();
     }
 
+    // Registers a sport by both its id and display name.
     public SportRegistry register(SportRegistration registration) {
         SportRegistration validatedRegistration =
                 Objects.requireNonNull(registration, "Sport registration cannot be null.");
 
         String normalizedId = normalize(validatedRegistration.getSportId());
+
         if (registrationsById.containsKey(normalizedId)) {
             throw new IllegalArgumentException(
-                    "A sport is already registered with id: " + validatedRegistration.getSportId());
+                    "A sport is already registered with id: " + validatedRegistration.getSportId()
+            );
         }
 
         String normalizedDisplayName = normalize(validatedRegistration.getDisplayName());
+
         if (registrationsByChoice.containsKey(normalizedDisplayName)) {
             throw new IllegalArgumentException(
-                    "A sport is already registered with display name: " + validatedRegistration.getDisplayName());
+                    "A sport is already registered with display name: " + validatedRegistration.getDisplayName()
+            );
         }
 
         registrationsById.put(normalizedId, validatedRegistration);
+
+        // Allows lookup by either sport id or display name.
         registrationsByChoice.put(normalizedId, validatedRegistration);
         registrationsByChoice.put(normalizedDisplayName, validatedRegistration);
+
         return this;
     }
 
+    // Finds a sport registration from a user-facing sport choice.
     public SportRegistration getRegistration(String sportChoice) {
         String normalizedChoice = normalize(validateChoice(sportChoice));
         SportRegistration registration = registrationsByChoice.get(normalizedChoice);
+
         if (registration == null) {
             throw new IllegalArgumentException("Unknown sport choice: " + sportChoice);
         }
-        return registration;
-    }
 
-    public SportFactory getFactory(String sportChoice) {
-        return getRegistration(sportChoice).getSportFactory();
+        return registration;
     }
 
     public List<SportRegistration> getRegisteredSports() {
@@ -58,12 +63,15 @@ public final class SportRegistry {
 
     private String validateChoice(String sportChoice) {
         String cleaned = Objects.requireNonNull(sportChoice, "Sport choice cannot be null.").trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException("Sport choice cannot be blank.");
         }
+
         return cleaned;
     }
 
+    // Normalizes text so sport lookup is case-insensitive and whitespace-safe.
     private String normalize(String value) {
         return value.trim().toLowerCase(Locale.ROOT);
     }

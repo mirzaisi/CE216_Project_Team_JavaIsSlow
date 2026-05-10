@@ -10,6 +10,7 @@ import java.util.List;
 public interface MatchProcessingStrategy {
     Match processMatch(GameSession session, Fixture fixture);
 
+    // Default ranking behavior uses the active sport's standings policy.
     default List<Team> rankTeams(GameSession session) {
         return session.getActiveSport()
                 .getStandingsPolicy()

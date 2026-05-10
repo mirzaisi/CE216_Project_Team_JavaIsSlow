@@ -17,16 +17,19 @@ public class HandballWeekProgressionStrategy implements WeekProgressionStrategy 
     @Override
     public WeekProgressionContext createContext(GameSession session) {
         HandballSeason season = requireSeason(session);
+
         if (season.isCompleted()) {
             throw new IllegalStateException("Season is already completed.");
         }
 
         League league = season.getLeague();
+
         if (league.getFixtures().isEmpty()) {
             throw new IllegalStateException("Season has no scheduled fixtures.");
         }
 
         List<Fixture> currentWeekFixtures = season.getCurrentWeekFixtures();
+
         if (currentWeekFixtures.isEmpty()) {
             throw new IllegalStateException("No fixtures scheduled for week " + season.getCurrentWeek() + ".");
         }
@@ -39,12 +42,14 @@ public class HandballWeekProgressionStrategy implements WeekProgressionStrategy 
         HandballSeason season = requireSeason(session);
         Sport sport = Objects.requireNonNull(session, "Game session cannot be null.").getActiveSport();
 
+        // Creates and prepares matches for all unplayed fixtures in the week.
         for (Fixture fixture : context.getScheduledFixtures()) {
             if (fixture.isPlayed()) {
                 continue;
             }
 
             Match match = new HandballMatch(fixture.getHomeTeam(), fixture.getAwayTeam());
+
             season.prepareMatch(match, sport);
             context.addPreparedMatch(fixture, match);
         }
@@ -56,6 +61,7 @@ public class HandballWeekProgressionStrategy implements WeekProgressionStrategy 
         Sport sport = validatedSession.getActiveSport();
         League league = validatedSession.getCurrentSeason().getLeague();
 
+        // Simulates each prepared match and records its result in the league standings.
         for (Fixture fixture : context.getScheduledFixtures()) {
             if (fixture.isPlayed()) {
                 continue;
@@ -65,6 +71,7 @@ public class HandballWeekProgressionStrategy implements WeekProgressionStrategy 
                     context.getPreparedMatch(fixture),
                     "Prepared match cannot be null."
             );
+
             sport.getMatchEngine().simulate(match, sport.getRuleset());
             fixture.attachPlayedMatch(match);
             sport.getStandingsPolicy().recordMatch(league, match);
@@ -74,15 +81,20 @@ public class HandballWeekProgressionStrategy implements WeekProgressionStrategy 
     @Override
     public void refreshStandings(GameSession session, WeekProgressionContext context) {
         HandballSeason season = requireSeason(session);
+
         season.refreshStandings(session.getActiveSport().getStandingsPolicy());
     }
 
     @Override
     public void processPostMatch(GameSession session, WeekProgressionContext context) {
         Sport sport = Objects.requireNonNull(session, "Game session cannot be null.").getActiveSport();
+
+        // Applies post-match injuries to all matches prepared during this progression.
         for (Match match : context.getPreparedMatches()) {
             sport.getInjuryPolicy().applyPostMatch(match);
         }
+
+        // Recovers players after the week has finished processing.
         for (Team team : session.getCurrentSeason().getLeague().getTeams()) {
             sport.getInjuryPolicy().recoverPlayers(team);
         }
@@ -95,9 +107,11 @@ public class HandballWeekProgressionStrategy implements WeekProgressionStrategy 
 
     private HandballSeason requireSeason(GameSession session) {
         Objects.requireNonNull(session, "Game session cannot be null.");
+
         if (!(session.getCurrentSeason() instanceof HandballSeason handballSeason)) {
             throw new IllegalArgumentException("Handball progression requires HandballSeason.");
         }
+
         return handballSeason;
     }
 }

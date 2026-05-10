@@ -9,9 +9,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Keeps lineup validation, starting-lineup composition, bench limits, and points logic in one place.
- */
 public final class FootballRuleset implements Ruleset {
     public static final int STARTING_LINEUP_SIZE = 11;
     public static final int MAX_BENCH_SIZE = 7;
@@ -71,13 +68,16 @@ public final class FootballRuleset implements Ruleset {
 
     public void validateLineupOrThrow(Lineup lineup) {
         Objects.requireNonNull(lineup, "Lineup cannot be null.");
+
         if (!(lineup instanceof FootballLineup footballLineup)) {
             throw new IllegalArgumentException("Football rules require a FootballLineup instance.");
         }
 
+        // Football requires exactly 11 starting players.
         if (footballLineup.getStartingPlayers().size() != getStartingLineupSize()) {
             throw new IllegalArgumentException(
-                    "Football starting lineup must contain exactly " + getStartingLineupSize() + " players.");
+                    "Football starting lineup must contain exactly " + getStartingLineupSize() + " players."
+            );
         }
 
         validateStartingPositionCount(footballLineup, FootballPosition.GOALKEEPER, REQUIRED_GOALKEEPERS);
@@ -85,19 +85,25 @@ public final class FootballRuleset implements Ruleset {
         validateStartingPositionCount(footballLineup, FootballPosition.MIDFIELDER, REQUIRED_MIDFIELDERS);
         validateStartingPositionCount(footballLineup, FootballPosition.FORWARD, REQUIRED_FORWARDS);
 
+        // Bench size must stay within the football ruleset limit.
         if (footballLineup.getBenchPlayers().size() > getBenchSize()) {
             throw new IllegalArgumentException(
-                    "Football bench can contain at most " + getBenchSize() + " players.");
+                    "Football bench can contain at most " + getBenchSize() + " players."
+            );
         }
 
         Set<String> seenIds = new HashSet<>();
+
+        // Ensures selected football players are unique and available.
         for (FootballPlayer player : footballLineup.getAllPlayers()) {
             if (!seenIds.add(player.getId())) {
                 throw new IllegalArgumentException("Duplicate football player in lineup: " + player.getId());
             }
+
             if (!player.isAvailable()) {
                 throw new IllegalArgumentException(
-                        "Unavailable football player cannot be selected: " + player.getName());
+                        "Unavailable football player cannot be selected: " + player.getName()
+                );
             }
         }
     }
@@ -106,45 +112,58 @@ public final class FootballRuleset implements Ruleset {
         Objects.requireNonNull(availablePlayers, "Available players cannot be null.");
 
         List<FootballPlayer> playerPool = new ArrayList<>(availablePlayers.size());
+
+        // Copies the available player list while rejecting null entries.
         for (FootballPlayer player : availablePlayers) {
             playerPool.add(Objects.requireNonNull(player, "Available player cannot be null."));
         }
 
         List<FootballPlayer> starters = new ArrayList<>(getStartingLineupSize());
         Set<String> selectedIds = new HashSet<>();
+
         addRequiredStarters(playerPool, starters, selectedIds, FootballPosition.GOALKEEPER, REQUIRED_GOALKEEPERS);
         addRequiredStarters(playerPool, starters, selectedIds, FootballPosition.DEFENDER, REQUIRED_DEFENDERS);
         addRequiredStarters(playerPool, starters, selectedIds, FootballPosition.MIDFIELDER, REQUIRED_MIDFIELDERS);
         addRequiredStarters(playerPool, starters, selectedIds, FootballPosition.FORWARD, REQUIRED_FORWARDS);
 
         List<FootballPlayer> bench = new ArrayList<>();
+
+        // Fills the bench with remaining available players.
         for (FootballPlayer player : playerPool) {
             if (bench.size() == getBenchSize()) {
                 break;
             }
+
             if (player.isAvailable() && selectedIds.add(player.getId())) {
                 bench.add(player);
             }
         }
 
         FootballLineup lineup = new FootballLineup(starters, bench);
+
         validateLineupOrThrow(lineup);
+
         return lineup;
     }
 
     public MatchOutcome determineOutcome(int goalsScored, int goalsConceded) {
         validateScore(goalsScored, goalsConceded);
+
         if (goalsScored > goalsConceded) {
             return MatchOutcome.WIN;
         }
+
         if (goalsScored < goalsConceded) {
             return MatchOutcome.LOSS;
         }
+
         return MatchOutcome.DRAW;
     }
 
     public int getPointsForOutcome(MatchOutcome outcome) {
-        return switch (Objects.requireNonNull(outcome, "Outcome cannot be null.")) {
+        Objects.requireNonNull(outcome, "Outcome cannot be null.");
+
+        return switch (outcome) {
             case WIN -> getWinPoints();
             case DRAW -> getDrawPoints();
             case LOSS -> getLossPoints();
@@ -156,6 +175,7 @@ public final class FootballRuleset implements Ruleset {
     }
 
     private void validateScore(int goalsScored, int goalsConceded) {
+        // Scores cannot be stored or evaluated as negative values.
         if (goalsScored < 0 || goalsConceded < 0) {
             throw new IllegalArgumentException("Scores cannot be negative.");
         }
@@ -169,10 +189,13 @@ public final class FootballRuleset implements Ruleset {
             int requiredCount
     ) {
         int added = 0;
+
+        // Adds the required number of available players for one position.
         for (FootballPlayer player : playerPool) {
             if (player.getPosition() == position && player.isAvailable() && selectedIds.add(player.getId())) {
                 starters.add(player);
                 added++;
+
                 if (added == requiredCount) {
                     return;
                 }
@@ -180,7 +203,8 @@ public final class FootballRuleset implements Ruleset {
         }
 
         throw new IllegalArgumentException(
-                "Not enough available " + position.name() + " players for football lineup.");
+                "Not enough available " + position.name() + " players for football lineup."
+        );
     }
 
     private void validateStartingPositionCount(
@@ -188,16 +212,23 @@ public final class FootballRuleset implements Ruleset {
             FootballPosition position,
             int expectedCount
     ) {
-        long actualCount = lineup.getStartingPlayers().stream()
-                .filter(player -> player.getPosition() == position)
-                .count();
+        int actualCount = 0;
+
+        // Counts how many starters match the required football position.
+        for (FootballPlayer player : lineup.getStartingPlayers()) {
+            if (player.getPosition() == position) {
+                actualCount++;
+            }
+        }
+
         if (actualCount != expectedCount) {
             throw new IllegalArgumentException(
                     "Football starting lineup must contain exactly "
                             + expectedCount
                             + " "
                             + position.name()
-                            + " players.");
+                            + " players."
+            );
         }
     }
 }

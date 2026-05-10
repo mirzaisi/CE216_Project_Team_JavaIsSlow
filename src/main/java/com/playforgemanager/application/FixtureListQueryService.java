@@ -11,6 +11,7 @@ public class FixtureListQueryService {
         GameSession validatedSession = Objects.requireNonNull(session, "Game session cannot be null.");
         Team controlledTeam = validatedSession.getControlledTeam();
 
+        // Builds the fixture list from the current season and controlled team.
         return new FixtureListView(
                 controlledTeam.getName(),
                 validatedSession.getCurrentSeason().getCurrentWeek(),

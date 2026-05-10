@@ -7,12 +7,15 @@ public abstract class Player {
     private int injuryMatchesRemaining;
 
     protected Player(String id, String name) {
+        // Player identity fields must always contain valid text.
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Player id cannot be blank.");
         }
+
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Player name cannot be blank.");
         }
+
         this.id = id;
         this.name = name;
         this.available = true;
@@ -40,9 +43,11 @@ public abstract class Player {
     }
 
     public void injureForMatches(int matches) {
+        // Injury duration must be at least one match.
         if (matches <= 0) {
             throw new IllegalArgumentException("Injury duration must be positive.");
         }
+
         this.injuryMatchesRemaining = matches;
         this.available = false;
     }
@@ -51,6 +56,8 @@ public abstract class Player {
         if (injuryMatchesRemaining > 0) {
             injuryMatchesRemaining--;
         }
+
+        // Once the injury countdown reaches zero, the player becomes available.
         if (injuryMatchesRemaining == 0) {
             available = true;
         }

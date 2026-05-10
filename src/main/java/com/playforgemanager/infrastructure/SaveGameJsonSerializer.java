@@ -6,10 +6,13 @@ import java.lang.reflect.RecordComponent;
 import java.util.Iterator;
 
 final class SaveGameJsonSerializer {
+
     String serialize(Object value) {
         StringBuilder json = new StringBuilder();
+
         writeValue(value, json, 0);
         json.append(System.lineSeparator());
+
         return json.toString();
     }
 
@@ -35,14 +38,17 @@ final class SaveGameJsonSerializer {
 
     private void writeRecord(Object record, StringBuilder json, int indentLevel) {
         RecordComponent[] components = record.getClass().getRecordComponents();
+
         json.append('{');
 
         if (components.length > 0) {
             json.append(System.lineSeparator());
         }
 
+        // Writes each record component as a JSON object field.
         for (int index = 0; index < components.length; index++) {
             RecordComponent component = components[index];
+
             indent(json, indentLevel + 1);
             writeString(component.getName(), json);
             json.append(": ");
@@ -51,12 +57,14 @@ final class SaveGameJsonSerializer {
             if (index < components.length - 1) {
                 json.append(',');
             }
+
             json.append(System.lineSeparator());
         }
 
         if (components.length > 0) {
             indent(json, indentLevel);
         }
+
         json.append('}');
     }
 
@@ -68,14 +76,18 @@ final class SaveGameJsonSerializer {
         }
 
         int index = 0;
+
+        // Writes array or iterable values using the same indentation style.
         while (iterator.hasNext()) {
             Object item = iterator.next();
+
             indent(json, indentLevel + 1);
             writeValue(item, json, indentLevel + 1);
 
             if (iterator.hasNext()) {
                 json.append(',');
             }
+
             json.append(System.lineSeparator());
             index++;
         }
@@ -83,6 +95,7 @@ final class SaveGameJsonSerializer {
         if (index > 0) {
             indent(json, indentLevel);
         }
+
         json.append(']');
     }
 
@@ -106,14 +119,20 @@ final class SaveGameJsonSerializer {
         try {
             return component.getAccessor().invoke(record);
         } catch (IllegalAccessException | InvocationTargetException exception) {
-            throw new IllegalArgumentException("Could not read JSON field: " + component.getName(), exception);
+            throw new IllegalArgumentException(
+                    "Could not read JSON field: " + component.getName(),
+                    exception
+            );
         }
     }
 
     private void writeString(String text, StringBuilder json) {
         json.append('"');
+
+        // Escapes text so it can be safely written as a JSON string.
         for (int index = 0; index < text.length(); index++) {
             char character = text.charAt(index);
+
             switch (character) {
                 case '"' -> json.append("\\\"");
                 case '\\' -> json.append("\\\\");
@@ -131,6 +150,7 @@ final class SaveGameJsonSerializer {
                 }
             }
         }
+
         json.append('"');
     }
 

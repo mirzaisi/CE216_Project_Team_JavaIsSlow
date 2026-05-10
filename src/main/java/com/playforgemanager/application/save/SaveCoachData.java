@@ -9,18 +9,24 @@ public record SaveCoachData(
         String role,
         List<SavePropertyValue> properties
 ) {
+
     public SaveCoachData {
+        // Validates and cleans the basic coach text fields.
         id = requireText(id, "Coach id cannot be blank.");
         name = requireText(name, "Coach name cannot be blank.");
         role = requireText(role, "Coach role cannot be blank.");
+
+        // Stores coach properties as a safe unmodifiable list.
         properties = List.copyOf(Objects.requireNonNull(properties, "Coach properties cannot be null."));
     }
 
     private static String requireText(String value, String message) {
         String cleaned = Objects.requireNonNull(value, message).trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
+
         return cleaned;
     }
 }

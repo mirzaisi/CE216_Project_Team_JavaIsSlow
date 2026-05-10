@@ -2,6 +2,7 @@ package com.playforgemanager.football;
 
 import com.playforgemanager.core.InjuryPolicy;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -14,18 +15,19 @@ public final class FootballTrainingEffectService {
         applyWeeklyTraining(team, new FootballRuleset(), null);
     }
 
-    public void applyWeeklyTraining(FootballTeam team, FootballRuleset ruleset) {
-        applyWeeklyTraining(team, ruleset, null);
-    }
-
     public void applyWeeklyTraining(FootballTeam team, FootballRuleset ruleset, InjuryPolicy injuryPolicy) {
         Objects.requireNonNull(team, "Football team cannot be null.");
-        FootballRuleset activeRuleset = ruleset == null ? new FootballRuleset() : ruleset;
 
+        FootballRuleset activeRuleset = ruleset == null ? new FootballRuleset() : ruleset;
         List<FootballPlayer> players = team.getFootballPlayers();
-        players.forEach(FootballPlayer::clearWeeklyTrainingEffect);
+
+        // Clears old weekly effects before applying the new training plan.
+        for (FootballPlayer player : players) {
+            player.clearWeeklyTrainingEffect();
+        }
 
         FootballTrainingPlan trainingPlan = team.getSelectedFootballTrainingPlan();
+
         if (trainingPlan == null) {
             clearInvalidSelectedLineup(team, activeRuleset);
             return;
@@ -38,9 +40,15 @@ public final class FootballTrainingEffectService {
             boolean selectableAtStart = player.isAvailable();
 
             if (injuredAtStart) {
-                FootballTrainingEffect recoveryEffect = buildRecoverySafeEffect(player, trainingPlan, team.getCoaches());
+                FootballTrainingEffect recoveryEffect = buildRecoverySafeEffect(
+                        player,
+                        trainingPlan,
+                        team.getCoaches()
+                );
+
                 player.applyWeeklyTrainingEffect(recoveryEffect);
                 applyRecovery(player, recoveryEffect, coachImpact);
+
                 continue;
             }
 
@@ -50,6 +58,7 @@ public final class FootballTrainingEffectService {
             }
 
             FootballTrainingEffect effect = buildEffect(player, trainingPlan, team.getCoaches());
+
             player.applyWeeklyTrainingEffect(effect);
         }
 
@@ -61,13 +70,18 @@ public final class FootballTrainingEffectService {
         return buildEffect(player, trainingPlan, List.of());
     }
 
-    FootballTrainingEffect buildEffect(FootballPlayer player, FootballTrainingPlan trainingPlan, List<FootballCoach> coaches) {
+    FootballTrainingEffect buildEffect(
+            FootballPlayer player,
+            FootballTrainingPlan trainingPlan,
+            List<FootballCoach> coaches
+    ) {
         Objects.requireNonNull(player, "Football player cannot be null.");
         Objects.requireNonNull(trainingPlan, "Football training plan cannot be null.");
         Objects.requireNonNull(coaches, "Coach list cannot be null.");
 
         FootballTrainingEffect baseEffect = buildBaseEffect(player, trainingPlan);
         FootballTrainingCoachImpact coachImpact = FootballTrainingCoachImpact.from(coaches, trainingPlan);
+
         return coachImpact.applyTo(baseEffect, player.getPosition(), trainingPlan.resolveFocusType());
     }
 
@@ -79,6 +93,7 @@ public final class FootballTrainingEffectService {
         FootballTrainingEffect fullEffect = buildEffect(player, trainingPlan, coaches);
         FootballTrainingPlan.FocusType focusType = trainingPlan.resolveFocusType();
 
+        // Injured players only receive safe recovery-focused temporary effects.
         if (focusType == FootballTrainingPlan.FocusType.RECOVERY || trainingPlan.isRecoveryIncluded()) {
             return new FootballTrainingEffect(
                     0,
@@ -103,9 +118,11 @@ public final class FootballTrainingEffectService {
         int stamina = 0;
         int passing = 0;
         int speed = 0;
+
         boolean acceleratedRecovery = trainingPlan.isRecoveryIncluded()
                 || trainingPlan.resolveFocusType() == FootballTrainingPlan.FocusType.RECOVERY;
 
+        // Applies the main effect based on the training focus.
         switch (trainingPlan.resolveFocusType()) {
             case ATTACKING -> {
                 attack += scaledBoost(intensityTier);
@@ -138,6 +155,7 @@ public final class FootballTrainingEffectService {
             }
         }
 
+        // Adds small position-specific adjustments to the base effect.
         switch (player.getPosition()) {
             case GOALKEEPER -> {
                 defense += 1;
@@ -166,16 +184,22 @@ public final class FootballTrainingEffectService {
         return new FootballTrainingEffect(attack, defense, stamina, passing, speed, acceleratedRecovery);
     }
 
-    private void applyRecovery(FootballPlayer player, FootballTrainingEffect effect, FootballTrainingCoachImpact coachImpact) {
+    private void applyRecovery(
+            FootballPlayer player,
+            FootballTrainingEffect effect,
+            FootballTrainingCoachImpact coachImpact
+    ) {
         if (player.getInjuryMatchesRemaining() <= 0) {
             return;
         }
 
         int recoverySteps = effect.acceleratedRecovery() ? 1 : 0;
+
         if (coachImpact.extraRecoveryStep()) {
             recoverySteps++;
         }
 
+        // Reduces the injury counter by the calculated recovery steps.
         for (int i = 0; i < recoverySteps && player.getInjuryMatchesRemaining() > 0; i++) {
             player.recoverOneMatch();
         }
@@ -187,18 +211,35 @@ public final class FootballTrainingEffectService {
             InjuryPolicy injuryPolicy
     ) {
         int injuryCount = trainingInjuryCount(trainingPlan);
+
+        if (injuryCount < 0) {
+            throw new IllegalArgumentException("Injury count cannot be negative.");
+        }
+
         if (injuryCount == 0) {
             return;
         }
 
-        List<FootballPlayer> candidates = team.getFootballPlayers().stream()
-                .filter(FootballPlayer::isAvailable)
-                .filter(player -> player.getInjuryMatchesRemaining() == 0)
-                .sorted(Comparator
-                        .comparingInt((FootballPlayer player) -> player.getAttributeProfile().getStamina())
-                        .thenComparing(FootballPlayer::getId))
-                .limit(injuryCount)
-                .toList();
+        List<FootballPlayer> candidates = new ArrayList<>();
+
+        // Selects available players who can be affected by intense training.
+        for (FootballPlayer player : team.getFootballPlayers()) {
+            if (player.isAvailable() && player.getInjuryMatchesRemaining() == 0) {
+                candidates.add(player);
+            }
+        }
+
+        candidates.sort(Comparator
+                .comparingInt((FootballPlayer player) -> player.getAttributeProfile().getStamina())
+                .thenComparing(FootballPlayer::getId));
+
+        List<FootballPlayer> limitedCandidates = new ArrayList<>();
+
+        for (int i = 0; i < candidates.size() && i < injuryCount; i++) {
+            limitedCandidates.add(candidates.get(i));
+        }
+
+        candidates = List.copyOf(limitedCandidates);
 
         for (FootballPlayer player : candidates) {
             applyTrainingInjury(team, player, injuryPolicy);
@@ -223,7 +264,11 @@ public final class FootballTrainingEffectService {
         return 0;
     }
 
-    private void applyTrainingInjury(FootballTeam team, FootballPlayer player, InjuryPolicy injuryPolicy) {
+    private void applyTrainingInjury(
+            FootballTeam team,
+            FootballPlayer player,
+            InjuryPolicy injuryPolicy
+    ) {
         player.clearWeeklyTrainingEffect();
 
         if (injuryPolicy instanceof FootballInjuryPolicy footballInjuryPolicy) {
@@ -239,6 +284,7 @@ public final class FootballTrainingEffectService {
 
     private void clearInvalidSelectedLineup(FootballTeam team, FootballRuleset ruleset) {
         FootballLineup selectedLineup = team.getSelectedFootballLineup();
+
         if (selectedLineup == null) {
             return;
         }
@@ -254,12 +300,15 @@ public final class FootballTrainingEffectService {
         if (load >= 75) {
             return 3;
         }
+
         if (load >= 50) {
             return 2;
         }
+
         if (load >= 25) {
             return 1;
         }
+
         return 0;
     }
 
@@ -292,28 +341,45 @@ public final class FootballTrainingEffectService {
         }
 
         static CoachingArea fromSpecialization(String specialization) {
-            String normalized = Objects.requireNonNull(specialization, "Coach specialization cannot be null.")
-                    .toLowerCase(Locale.ROOT)
-                    .trim();
+            String normalized = Objects.requireNonNull(
+                    specialization,
+                    "Coach specialization cannot be null."
+            ).toLowerCase(Locale.ROOT).trim();
 
-            if (normalized.contains("attack") || normalized.contains("finish") || normalized.contains("press")
-                    || normalized.contains("counter") || normalized.contains("offensive")) {
+            if (normalized.contains("attack")
+                    || normalized.contains("finish")
+                    || normalized.contains("press")
+                    || normalized.contains("counter")
+                    || normalized.contains("offensive")) {
                 return ATTACKING;
             }
-            if (normalized.contains("defen") || normalized.contains("compact") || normalized.contains("organiz")) {
+
+            if (normalized.contains("defen")
+                    || normalized.contains("compact")
+                    || normalized.contains("organiz")) {
                 return DEFENSIVE;
             }
-            if (normalized.contains("fit") || normalized.contains("condition") || normalized.contains("stamina")
+
+            if (normalized.contains("fit")
+                    || normalized.contains("condition")
+                    || normalized.contains("stamina")
                     || normalized.contains("physical")) {
                 return FITNESS;
             }
-            if (normalized.contains("possess") || normalized.contains("control") || normalized.contains("pass")
+
+            if (normalized.contains("possess")
+                    || normalized.contains("control")
+                    || normalized.contains("pass")
                     || normalized.contains("tactic")) {
                 return POSSESSION;
             }
-            if (normalized.contains("recover") || normalized.contains("medical") || normalized.contains("rehab")) {
+
+            if (normalized.contains("recover")
+                    || normalized.contains("medical")
+                    || normalized.contains("rehab")) {
                 return RECOVERY;
             }
+
             return GENERAL;
         }
     }
@@ -325,36 +391,84 @@ public final class FootballTrainingEffectService {
             boolean exactSpecializationMatch,
             boolean generalSupport
     ) {
-        private static FootballTrainingCoachImpact from(List<FootballCoach> coaches, FootballTrainingPlan trainingPlan) {
+
+        private static FootballTrainingCoachImpact from(
+                List<FootballCoach> coaches,
+                FootballTrainingPlan trainingPlan
+        ) {
             Objects.requireNonNull(coaches, "Coach list cannot be null.");
             Objects.requireNonNull(trainingPlan, "Football training plan cannot be null.");
 
             CoachingArea planArea = CoachingArea.fromTrainingFocus(trainingPlan.resolveFocusType());
+            FootballCoach bestExactCoach = null;
 
-            FootballCoach bestExactCoach = coaches.stream()
-                    .filter(Objects::nonNull)
-                    .filter(coach -> CoachingArea.fromSpecialization(coach.getSpecialization()) == planArea)
-                    .max(Comparator.comparingInt(FootballCoach::getCoachingRating))
-                    .orElse(null);
+            // Searches first for the best coach matching the training focus.
+            for (FootballCoach coach : coaches) {
+                if (coach == null) {
+                    continue;
+                }
+
+                CoachingArea coachArea = CoachingArea.fromSpecialization(coach.getSpecialization());
+
+                if (coachArea == planArea) {
+                    if (bestExactCoach == null
+                            || coach.getCoachingRating() > bestExactCoach.getCoachingRating()) {
+                        bestExactCoach = coach;
+                    }
+                }
+            }
 
             if (bestExactCoach != null) {
-                return new FootballTrainingCoachImpact(planArea, planArea, bestExactCoach.getCoachingRating(), true, false);
+                return new FootballTrainingCoachImpact(
+                        planArea,
+                        planArea,
+                        bestExactCoach.getCoachingRating(),
+                        true,
+                        false
+                );
             }
 
-            FootballCoach bestGeneralCoach = coaches.stream()
-                    .filter(Objects::nonNull)
-                    .filter(coach -> CoachingArea.fromSpecialization(coach.getSpecialization()) == CoachingArea.GENERAL)
-                    .max(Comparator.comparingInt(FootballCoach::getCoachingRating))
-                    .orElse(null);
+            FootballCoach bestGeneralCoach = null;
+
+            // Falls back to the best general coach if no exact match exists.
+            for (FootballCoach coach : coaches) {
+                if (coach == null) {
+                    continue;
+                }
+
+                CoachingArea coachArea = CoachingArea.fromSpecialization(coach.getSpecialization());
+
+                if (coachArea == CoachingArea.GENERAL) {
+                    if (bestGeneralCoach == null
+                            || coach.getCoachingRating() > bestGeneralCoach.getCoachingRating()) {
+                        bestGeneralCoach = coach;
+                    }
+                }
+            }
 
             if (bestGeneralCoach != null) {
-                return new FootballTrainingCoachImpact(planArea, CoachingArea.GENERAL, bestGeneralCoach.getCoachingRating(), false, true);
+                return new FootballTrainingCoachImpact(
+                        planArea,
+                        CoachingArea.GENERAL,
+                        bestGeneralCoach.getCoachingRating(),
+                        false,
+                        true
+                );
             }
 
-            FootballCoach bestAvailableCoach = coaches.stream()
-                    .filter(Objects::nonNull)
-                    .max(Comparator.comparingInt(FootballCoach::getCoachingRating))
-                    .orElse(null);
+            FootballCoach bestAvailableCoach = null;
+
+            // Uses the highest-rated available coach as the final fallback.
+            for (FootballCoach coach : coaches) {
+                if (coach == null) {
+                    continue;
+                }
+
+                if (bestAvailableCoach == null
+                        || coach.getCoachingRating() > bestAvailableCoach.getCoachingRating()) {
+                    bestAvailableCoach = coach;
+                }
+            }
 
             if (bestAvailableCoach != null) {
                 return new FootballTrainingCoachImpact(
@@ -369,13 +483,18 @@ public final class FootballTrainingEffectService {
             return new FootballTrainingCoachImpact(planArea, CoachingArea.GENERAL, 0, false, false);
         }
 
-        private FootballTrainingEffect applyTo(FootballTrainingEffect baseEffect, FootballPosition position, FootballTrainingPlan.FocusType focusType) {
+        private FootballTrainingEffect applyTo(
+                FootballTrainingEffect baseEffect,
+                FootballPosition position,
+                FootballTrainingPlan.FocusType focusType
+        ) {
             Objects.requireNonNull(baseEffect, "Base training effect cannot be null.");
             Objects.requireNonNull(position, "Football position cannot be null.");
             Objects.requireNonNull(focusType, "Training focus type cannot be null.");
 
             int tier = ratingTier();
             int specializationBonus = effectiveSpecializationBonus(tier);
+
             int attack = baseEffect.attackDelta();
             int defense = baseEffect.defenseDelta();
             int stamina = baseEffect.staminaDelta();
@@ -419,20 +538,39 @@ public final class FootballTrainingEffectService {
             }
 
             if (!exactSpecializationMatch && !generalSupport && tier == 0) {
-                attack = Math.max(0, attack - reliabilityPenalty(attack, focusType, FootballTrainingPlan.FocusType.ATTACKING));
-                defense = Math.max(0, defense - reliabilityPenalty(defense, focusType, FootballTrainingPlan.FocusType.DEFENSIVE));
-                stamina = Math.max(0, stamina - reliabilityPenalty(stamina, focusType, FootballTrainingPlan.FocusType.FITNESS));
-                passing = Math.max(0, passing - reliabilityPenalty(passing, focusType, FootballTrainingPlan.FocusType.POSSESSION));
+                attack = Math.max(
+                        0,
+                        attack - reliabilityPenalty(attack, focusType, FootballTrainingPlan.FocusType.ATTACKING)
+                );
+                defense = Math.max(
+                        0,
+                        defense - reliabilityPenalty(defense, focusType, FootballTrainingPlan.FocusType.DEFENSIVE)
+                );
+                stamina = Math.max(
+                        0,
+                        stamina - reliabilityPenalty(stamina, focusType, FootballTrainingPlan.FocusType.FITNESS)
+                );
+                passing = Math.max(
+                        0,
+                        passing - reliabilityPenalty(passing, focusType, FootballTrainingPlan.FocusType.POSSESSION)
+                );
             }
 
+            // Applies final position-specific coach bonuses and limits.
             switch (position) {
                 case GOALKEEPER -> {
                     attack = Math.min(attack, 2);
                     speed = Math.min(speed, 2);
                 }
-                case DEFENDER -> defense += exactSpecializationMatch && planArea == CoachingArea.DEFENSIVE && tier >= 3 ? 1 : 0;
-                case MIDFIELDER -> passing += exactSpecializationMatch && planArea == CoachingArea.POSSESSION && tier >= 3 ? 1 : 0;
-                case FORWARD -> attack += exactSpecializationMatch && planArea == CoachingArea.ATTACKING && tier >= 3 ? 1 : 0;
+                case DEFENDER -> defense += exactSpecializationMatch
+                        && planArea == CoachingArea.DEFENSIVE
+                        && tier >= 3 ? 1 : 0;
+                case MIDFIELDER -> passing += exactSpecializationMatch
+                        && planArea == CoachingArea.POSSESSION
+                        && tier >= 3 ? 1 : 0;
+                case FORWARD -> attack += exactSpecializationMatch
+                        && planArea == CoachingArea.ATTACKING
+                        && tier >= 3 ? 1 : 0;
             }
 
             return new FootballTrainingEffect(attack, defense, stamina, passing, speed, acceleratedRecovery);
@@ -442,12 +580,15 @@ public final class FootballTrainingEffectService {
             if (rating >= 85) {
                 return 3;
             }
+
             if (rating >= 70) {
                 return 2;
             }
+
             if (rating >= 50) {
                 return 1;
             }
+
             return 0;
         }
 
@@ -455,9 +596,11 @@ public final class FootballTrainingEffectService {
             if (exactSpecializationMatch) {
                 return tier;
             }
+
             if (generalSupport) {
                 return Math.min(1, tier);
             }
+
             return 0;
         }
 
@@ -465,10 +608,15 @@ public final class FootballTrainingEffectService {
             return planArea == CoachingArea.RECOVERY && exactSpecializationMatch && rating >= 85;
         }
 
-        private int reliabilityPenalty(int currentDelta, FootballTrainingPlan.FocusType activeFocus, FootballTrainingPlan.FocusType protectedFocus) {
+        private int reliabilityPenalty(
+                int currentDelta,
+                FootballTrainingPlan.FocusType activeFocus,
+                FootballTrainingPlan.FocusType protectedFocus
+        ) {
             if (currentDelta == 0 || activeFocus == protectedFocus) {
                 return 0;
             }
+
             return 1;
         }
     }

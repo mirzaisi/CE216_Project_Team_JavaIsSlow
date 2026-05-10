@@ -15,6 +15,7 @@ public class FootballSport implements Sport {
     private final InjuryPolicy injuryPolicy;
 
     public FootballSport() {
+        // Creates the football-specific services used by the sport module.
         this.ruleset = new FootballRuleset();
         this.scheduler = new RoundRobinFootballScheduler();
         this.standingsPolicy = new FootballStandingsPolicy(ruleset);

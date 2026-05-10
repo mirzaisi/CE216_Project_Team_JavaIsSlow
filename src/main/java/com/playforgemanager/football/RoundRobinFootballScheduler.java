@@ -20,8 +20,10 @@ public class RoundRobinFootballScheduler implements Scheduler {
         List<Fixture> reverseFixtures = generateReverseFixtures(firstLeg);
 
         List<Fixture> allFixtures = new ArrayList<>(firstLeg.size() + reverseFixtures.size());
+
         allFixtures.addAll(firstLeg);
         allFixtures.addAll(reverseFixtures);
+
         return allFixtures;
     }
 
@@ -35,6 +37,7 @@ public class RoundRobinFootballScheduler implements Scheduler {
         List<Team> validatedTeams = new ArrayList<>(teams.size());
         Set<String> teamIds = new HashSet<>();
 
+        // Validates teams and prevents duplicate team ids.
         for (Team team : teams) {
             Objects.requireNonNull(team, "Team cannot be null.");
 
@@ -51,12 +54,14 @@ public class RoundRobinFootballScheduler implements Scheduler {
     private List<Fixture> generateFirstLeg(List<Team> teams) {
         List<Team> rotation = new ArrayList<>(teams);
 
+        // Adds a bye slot when the team count is odd.
         if (rotation.size() % 2 != 0) {
             rotation.add(null);
         }
 
         int teamCount = rotation.size();
         int rounds = teamCount - 1;
+
         List<Team> current = new ArrayList<>(rotation);
         List<Fixture> fixtures = new ArrayList<>();
 
@@ -71,6 +76,7 @@ public class RoundRobinFootballScheduler implements Scheduler {
                     continue;
                 }
 
+                // Alternates home and away teams between rounds.
                 if (round % 2 == 1) {
                     Team temp = home;
                     home = away;
@@ -82,6 +88,7 @@ public class RoundRobinFootballScheduler implements Scheduler {
 
             Team fixedTeam = current.get(0);
             List<Team> rotatingTeams = new ArrayList<>(current.subList(1, current.size()));
+
             Collections.rotate(rotatingTeams, 1);
 
             current = new ArrayList<>();
@@ -93,13 +100,18 @@ public class RoundRobinFootballScheduler implements Scheduler {
     }
 
     private List<Fixture> generateReverseFixtures(List<Fixture> firstLeg) {
-        int secondLegWeekOffset = firstLeg.stream()
-                .mapToInt(Fixture::getWeek)
-                .max()
-                .orElse(0);
+        int secondLegWeekOffset = 0;
+
+        // Finds the final first-leg week to schedule the reverse leg after it.
+        for (Fixture fixture : firstLeg) {
+            if (fixture.getWeek() > secondLegWeekOffset) {
+                secondLegWeekOffset = fixture.getWeek();
+            }
+        }
 
         List<Fixture> reverseFixtures = new ArrayList<>(firstLeg.size());
 
+        // Creates the second leg by swapping home and away teams.
         for (Fixture fixture : firstLeg) {
             reverseFixtures.add(new Fixture(
                     fixture.getWeek() + secondLegWeekOffset,

@@ -28,10 +28,13 @@ public class LoadGameService {
 
     public GameSession load(Path savePath) throws IOException {
         SaveGameDocument document = reader.read(savePath);
+
         validateDocument(document);
 
         SaveSessionData savedSession = document.session();
         SportRegistration registration = sportRegistry.getRegistration(savedSession.sportId());
+
+        // Selects the correct sport-specific restorer based on the saved sport id.
         return restorationRegistry
                 .getRestorer(savedSession.sportId())
                 .restore(document, registration);
@@ -39,9 +42,13 @@ public class LoadGameService {
 
     private void validateDocument(SaveGameDocument document) {
         Objects.requireNonNull(document, "Save document cannot be null.");
+
+        // Ensures the save file belongs to the expected save format.
         if (!SaveGameFormat.FORMAT_ID.equals(document.formatId())) {
             throw new IllegalArgumentException("Unsupported save format: " + document.formatId());
         }
+
+        // Prevents loading saves created with an unsupported format version.
         if (document.formatVersion() != SaveGameFormat.CURRENT_VERSION) {
             throw new IllegalArgumentException("Unsupported save version: " + document.formatVersion());
         }

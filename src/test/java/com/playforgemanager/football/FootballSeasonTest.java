@@ -113,7 +113,6 @@ class FootballSeasonTest {
 
         assertTrue(season.isCompleted());
         assertTrue(season.canCreateNextSeason());
-        assertNotNull(season.createNextSeasonStub());
     }
 
     private FootballSeason buildSeason() {

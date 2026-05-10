@@ -29,16 +29,26 @@ public class JsonSaveGameWriter implements SaveGameWriter {
 
         Path normalizedPath = savePath.toAbsolutePath().normalize();
         Path parentDirectory = normalizedPath.getParent();
+
         if (parentDirectory != null) {
             Files.createDirectories(parentDirectory);
         }
 
-        Path tempDirectory = parentDirectory == null ? Path.of(".").toAbsolutePath().normalize() : parentDirectory;
-        Path tempFile = Files.createTempFile(tempDirectory, normalizedPath.getFileName().toString(), ".tmp");
+        Path tempDirectory = parentDirectory == null
+                ? Path.of(".").toAbsolutePath().normalize()
+                : parentDirectory;
+
+        Path tempFile = Files.createTempFile(
+                tempDirectory,
+                normalizedPath.getFileName().toString(),
+                ".tmp"
+        );
 
         try {
             Files.writeString(tempFile, serializer.serialize(document), StandardCharsets.UTF_8);
+
             try {
+                // Uses an atomic replace when the file system supports it.
                 Files.move(
                         tempFile,
                         normalizedPath,
@@ -49,6 +59,7 @@ public class JsonSaveGameWriter implements SaveGameWriter {
                 Files.move(tempFile, normalizedPath, StandardCopyOption.REPLACE_EXISTING);
             }
         } finally {
+            // Cleans up the temporary file if the write or move did not finish normally.
             Files.deleteIfExists(tempFile);
         }
     }

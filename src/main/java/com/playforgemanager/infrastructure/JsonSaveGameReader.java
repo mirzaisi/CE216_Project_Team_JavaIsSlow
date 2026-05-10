@@ -26,10 +26,13 @@ import java.util.Map;
 import java.util.Objects;
 
 public class JsonSaveGameReader implements SaveGameReader {
+
     @Override
     public SaveGameDocument read(Path savePath) throws IOException {
         Objects.requireNonNull(savePath, "Save path cannot be null.");
+
         Object parsed = new Parser(Files.readString(savePath)).parse();
+
         return toDocument(asObject(parsed, "save root"));
     }
 
@@ -42,70 +45,123 @@ public class JsonSaveGameReader implements SaveGameReader {
     }
 
     private SaveSessionData toSessionData(Map<String, Object> session) {
+        String sportId = requiredString(session, "sportId");
+        String progressionState = requiredString(session, "progressionState");
+        String controlledTeamId = requiredString(session, "controlledTeamId");
+        SaveSeasonData season = toSeasonData(requiredObject(session, "season"));
+
+        List<SaveFieldPolicy> fieldPolicies = new ArrayList<>();
+
+        // Restores all declared persistence policies from the save session.
+        for (Map<String, Object> fieldPolicy : requiredObjects(session, "fieldPolicies")) {
+            fieldPolicies.add(toFieldPolicy(fieldPolicy));
+        }
+
         return new SaveSessionData(
-                requiredString(session, "sportId"),
-                requiredString(session, "progressionState"),
-                requiredString(session, "controlledTeamId"),
-                toSeasonData(requiredObject(session, "season")),
-                requiredObjects(session, "fieldPolicies").stream()
-                        .map(this::toFieldPolicy)
-                        .toList()
+                sportId,
+                progressionState,
+                controlledTeamId,
+                season,
+                List.copyOf(fieldPolicies)
         );
     }
 
     private SaveSeasonData toSeasonData(Map<String, Object> season) {
+        String leagueName = requiredString(season, "leagueName");
+        int currentWeek = requiredInt(season, "currentWeek");
+        boolean completed = requiredBoolean(season, "completed");
+
+        List<SaveTeamData> teams = new ArrayList<>();
+
+        for (Map<String, Object> team : requiredObjects(season, "teams")) {
+            teams.add(toTeamData(team));
+        }
+
+        List<SaveFixtureData> fixtures = new ArrayList<>();
+
+        for (Map<String, Object> fixture : requiredObjects(season, "fixtures")) {
+            fixtures.add(toFixtureData(fixture));
+        }
+
         return new SaveSeasonData(
-                requiredString(season, "leagueName"),
-                requiredInt(season, "currentWeek"),
-                requiredBoolean(season, "completed"),
-                requiredObjects(season, "teams").stream()
-                        .map(this::toTeamData)
-                        .toList(),
-                requiredObjects(season, "fixtures").stream()
-                        .map(this::toFixtureData)
-                        .toList()
+                leagueName,
+                currentWeek,
+                completed,
+                List.copyOf(teams),
+                List.copyOf(fixtures)
         );
     }
 
     private SaveTeamData toTeamData(Map<String, Object> team) {
+        String id = requiredString(team, "id");
+        String name = requiredString(team, "name");
+
+        List<SaveCoachData> coaches = new ArrayList<>();
+
+        for (Map<String, Object> coach : requiredObjects(team, "coaches")) {
+            coaches.add(toCoachData(coach));
+        }
+
+        List<SavePlayerData> players = new ArrayList<>();
+
+        for (Map<String, Object> player : requiredObjects(team, "players")) {
+            players.add(toPlayerData(player));
+        }
+
+        SaveLineupData selectedLineup = optionalLineup(team);
+        SaveTacticData selectedTactic = optionalTactic(team);
+        SaveTrainingPlanData selectedTrainingPlan = optionalTrainingPlan(team);
+
+        List<SavePropertyValue> properties = new ArrayList<>();
+
+        for (Map<String, Object> property : requiredObjects(team, "properties")) {
+            properties.add(toPropertyValue(property));
+        }
+
         return new SaveTeamData(
-                requiredString(team, "id"),
-                requiredString(team, "name"),
-                requiredObjects(team, "coaches").stream()
-                        .map(this::toCoachData)
-                        .toList(),
-                requiredObjects(team, "players").stream()
-                        .map(this::toPlayerData)
-                        .toList(),
-                optionalLineup(team, "selectedLineup"),
-                optionalTactic(team, "selectedTactic"),
-                optionalTrainingPlan(team, "selectedTrainingPlan"),
-                requiredObjects(team, "properties").stream()
-                        .map(this::toPropertyValue)
-                        .toList()
+                id,
+                name,
+                List.copyOf(coaches),
+                List.copyOf(players),
+                selectedLineup,
+                selectedTactic,
+                selectedTrainingPlan,
+                List.copyOf(properties)
         );
     }
 
     private SaveCoachData toCoachData(Map<String, Object> coach) {
-        return new SaveCoachData(
-                requiredString(coach, "id"),
-                requiredString(coach, "name"),
-                requiredString(coach, "role"),
-                requiredObjects(coach, "properties").stream()
-                        .map(this::toPropertyValue)
-                        .toList()
-        );
+        String id = requiredString(coach, "id");
+        String name = requiredString(coach, "name");
+        String role = requiredString(coach, "role");
+
+        List<SavePropertyValue> properties = new ArrayList<>();
+
+        for (Map<String, Object> property : requiredObjects(coach, "properties")) {
+            properties.add(toPropertyValue(property));
+        }
+
+        return new SaveCoachData(id, name, role, List.copyOf(properties));
     }
 
     private SavePlayerData toPlayerData(Map<String, Object> player) {
+        String id = requiredString(player, "id");
+        String name = requiredString(player, "name");
+        boolean available = requiredBoolean(player, "available");
+        int injuryMatchesRemaining = requiredInt(player, "injuryMatchesRemaining");
+
+        List<SavePropertyValue> properties = new ArrayList<>();
+
+        for (Map<String, Object> property : requiredObjects(player, "properties")) {
+            properties.add(toPropertyValue(property));
+        }
+
         return new SavePlayerData(
-                requiredString(player, "id"),
-                requiredString(player, "name"),
-                requiredBoolean(player, "available"),
-                requiredInt(player, "injuryMatchesRemaining"),
-                requiredObjects(player, "properties").stream()
-                        .map(this::toPropertyValue)
-                        .toList()
+                id,
+                name,
+                available,
+                injuryMatchesRemaining,
+                List.copyOf(properties)
         );
     }
 
@@ -114,16 +170,19 @@ public class JsonSaveGameReader implements SaveGameReader {
                 requiredInt(fixture, "week"),
                 requiredString(fixture, "homeTeamId"),
                 requiredString(fixture, "awayTeamId"),
-                optionalPlayedMatch(fixture, "playedMatch")
+                optionalPlayedMatch(fixture)
         );
     }
 
-    private SavePlayedMatchData optionalPlayedMatch(Map<String, Object> source, String key) {
-        Object value = source.get(key);
+    private SavePlayedMatchData optionalPlayedMatch(Map<String, Object> source) {
+        Object value = source.get("playedMatch");
+
         if (value == null) {
             return null;
         }
-        Map<String, Object> match = asObject(value, key);
+
+        Map<String, Object> match = asObject(value, "playedMatch");
+
         return new SavePlayedMatchData(
                 requiredInt(match, "homeScore"),
                 requiredInt(match, "awayScore"),
@@ -134,9 +193,10 @@ public class JsonSaveGameReader implements SaveGameReader {
         );
     }
 
-    private SaveLineupData optionalLineup(Map<String, Object> source, String key) {
-        Object value = source.get(key);
-        return value == null ? null : toLineupData(asObject(value, key));
+    private SaveLineupData optionalLineup(Map<String, Object> source) {
+        Object value = source.get("selectedLineup");
+
+        return value == null ? null : toLineupData(asObject(value, "selectedLineup"));
     }
 
     private SaveLineupData toLineupData(Map<String, Object> lineup) {
@@ -146,33 +206,45 @@ public class JsonSaveGameReader implements SaveGameReader {
         );
     }
 
-    private SaveTacticData optionalTactic(Map<String, Object> source, String key) {
-        Object value = source.get(key);
-        return value == null ? null : toTacticData(asObject(value, key));
+    private SaveTacticData optionalTactic(Map<String, Object> source) {
+        Object value = source.get("selectedTactic");
+
+        return value == null ? null : toTacticData(asObject(value, "selectedTactic"));
     }
 
     private SaveTacticData toTacticData(Map<String, Object> tactic) {
+        String name = requiredString(tactic, "name");
+
+        List<SavePropertyValue> properties = new ArrayList<>();
+
+        for (Map<String, Object> property : requiredObjects(tactic, "properties")) {
+            properties.add(toPropertyValue(property));
+        }
+
         return new SaveTacticData(
-                requiredString(tactic, "name"),
-                requiredObjects(tactic, "properties").stream()
-                        .map(this::toPropertyValue)
-                        .toList()
+                name,
+                List.copyOf(properties)
         );
     }
 
-    private SaveTrainingPlanData optionalTrainingPlan(Map<String, Object> source, String key) {
-        Object value = source.get(key);
+    private SaveTrainingPlanData optionalTrainingPlan(Map<String, Object> source) {
+        Object value = source.get("selectedTrainingPlan");
+
         if (value == null) {
             return null;
         }
-        Map<String, Object> plan = asObject(value, key);
-        return new SaveTrainingPlanData(
-                requiredString(plan, "focus"),
-                requiredInt(plan, "intensity"),
-                requiredObjects(plan, "properties").stream()
-                        .map(this::toPropertyValue)
-                        .toList()
-        );
+
+        Map<String, Object> plan = asObject(value, "selectedTrainingPlan");
+        String focus = requiredString(plan, "focus");
+        int intensity = requiredInt(plan, "intensity");
+
+        List<SavePropertyValue> properties = new ArrayList<>();
+
+        for (Map<String, Object> property : requiredObjects(plan, "properties")) {
+            properties.add(toPropertyValue(property));
+        }
+
+        return new SaveTrainingPlanData(focus, intensity, List.copyOf(properties));
     }
 
     private SavePropertyValue toPropertyValue(Map<String, Object> property) {
@@ -198,50 +270,64 @@ public class JsonSaveGameReader implements SaveGameReader {
     private List<Map<String, Object>> requiredObjects(Map<String, Object> source, String key) {
         List<?> values = asList(requiredValue(source, key), key);
         List<Map<String, Object>> objects = new ArrayList<>(values.size());
+
+        // Converts a saved list into strongly typed object maps.
         for (Object value : values) {
             objects.add(asObject(value, key));
         }
+
         return List.copyOf(objects);
     }
 
     private List<String> requiredStrings(Map<String, Object> source, String key) {
         List<?> values = asList(requiredValue(source, key), key);
         List<String> strings = new ArrayList<>(values.size());
+
         for (Object value : values) {
             if (!(value instanceof String text)) {
                 throw new IllegalArgumentException("Save field must contain only text values: " + key);
             }
+
             strings.add(text);
         }
+
         return List.copyOf(strings);
     }
 
     private String requiredString(Map<String, Object> source, String key) {
         Object value = requiredValue(source, key);
+
         if (!(value instanceof String text)) {
             throw new IllegalArgumentException("Save field must be text: " + key);
         }
+
         return text;
     }
 
     private int requiredInt(Map<String, Object> source, String key) {
         Object value = requiredValue(source, key);
+
         if (!(value instanceof Number number)) {
             throw new IllegalArgumentException("Save field must be a number: " + key);
         }
+
         double doubleValue = number.doubleValue();
         int intValue = number.intValue();
+
         if (Double.compare(doubleValue, intValue) != 0) {
             throw new IllegalArgumentException("Save field must be a whole number: " + key);
         }
+
         return intValue;
     }
 
     private boolean requiredBoolean(Map<String, Object> source, String key) {
         Object value = requiredValue(source, key);
+
         if (!(value instanceof Boolean booleanValue)) {
             throw new IllegalArgumentException("Save field must be true or false: " + key);
         }
+
         return booleanValue;
     }
 
@@ -249,6 +335,7 @@ public class JsonSaveGameReader implements SaveGameReader {
         if (!source.containsKey(key) || source.get(key) == null) {
             throw new IllegalArgumentException("Missing save field: " + key);
         }
+
         return source.get(key);
     }
 
@@ -257,6 +344,7 @@ public class JsonSaveGameReader implements SaveGameReader {
         if (!(value instanceof Map<?, ?> map)) {
             throw new IllegalArgumentException("Save field must be an object: " + label);
         }
+
         return (Map<String, Object>) map;
     }
 
@@ -264,6 +352,7 @@ public class JsonSaveGameReader implements SaveGameReader {
         if (!(value instanceof List<?> list)) {
             throw new IllegalArgumentException("Save field must be a list: " + label);
         }
+
         return list;
     }
 
@@ -277,20 +366,25 @@ public class JsonSaveGameReader implements SaveGameReader {
 
         private Object parse() {
             Object value = parseValue();
+
             skipWhitespace();
+
             if (!isAtEnd()) {
                 throw error("Unexpected text after JSON document.");
             }
+
             return value;
         }
 
         private Object parseValue() {
             skipWhitespace();
+
             if (isAtEnd()) {
                 throw error("Unexpected end of JSON.");
             }
 
             char current = peek();
+
             return switch (current) {
                 case '{' -> parseObject();
                 case '[' -> parseArray();
@@ -304,29 +398,40 @@ public class JsonSaveGameReader implements SaveGameReader {
 
         private Map<String, Object> parseObject() {
             expect('{');
+
             Map<String, Object> object = new LinkedHashMap<>();
+
             skipWhitespace();
+
             if (match('}')) {
                 return object;
             }
 
             do {
                 skipWhitespace();
+
                 String key = parseString();
+
                 skipWhitespace();
                 expect(':');
+
                 object.put(key, parseValue());
+
                 skipWhitespace();
             } while (match(','));
 
             expect('}');
+
             return object;
         }
 
         private List<Object> parseArray() {
             expect('[');
+
             List<Object> values = new ArrayList<>();
+
             skipWhitespace();
+
             if (match(']')) {
                 return values;
             }
@@ -337,18 +442,22 @@ public class JsonSaveGameReader implements SaveGameReader {
             } while (match(','));
 
             expect(']');
+
             return List.copyOf(values);
         }
 
         private String parseString() {
             expect('"');
+
             StringBuilder text = new StringBuilder();
 
             while (!isAtEnd()) {
                 char current = advance();
+
                 if (current == '"') {
                     return text.toString();
                 }
+
                 if (current != '\\') {
                     text.append(current);
                     continue;
@@ -357,7 +466,10 @@ public class JsonSaveGameReader implements SaveGameReader {
                 if (isAtEnd()) {
                     throw error("Unfinished string escape.");
                 }
+
                 char escaped = advance();
+
+                // Handles the JSON escape sequences supported by this parser.
                 switch (escaped) {
                     case '"' -> text.append('"');
                     case '\\' -> text.append('\\');
@@ -379,8 +491,10 @@ public class JsonSaveGameReader implements SaveGameReader {
             if (index + 4 > json.length()) {
                 throw error("Unfinished unicode escape.");
             }
+
             String hex = json.substring(index, index + 4);
             index += 4;
+
             try {
                 return (char) Integer.parseInt(hex, 16);
             } catch (NumberFormatException exception) {
@@ -390,6 +504,7 @@ public class JsonSaveGameReader implements SaveGameReader {
 
         private Object parseNumber() {
             int start = index;
+
             if (match('-')) {
                 if (isAtEnd() || !Character.isDigit(peek())) {
                     throw error("Invalid number.");
@@ -397,19 +512,26 @@ public class JsonSaveGameReader implements SaveGameReader {
             }
 
             readDigits();
+
             boolean decimal = false;
+
             if (match('.')) {
                 decimal = true;
                 readDigits();
             }
+
             if (match('e') || match('E')) {
                 decimal = true;
-                if (match('+') || match('-')) {
+
+                if (!match('+')) {
+                    match('-');
                 }
+
                 readDigits();
             }
 
             String numberText = json.substring(start, index);
+
             try {
                 return decimal ? Double.parseDouble(numberText) : Long.parseLong(numberText);
             } catch (NumberFormatException exception) {
@@ -419,9 +541,11 @@ public class JsonSaveGameReader implements SaveGameReader {
 
         private void readDigits() {
             int start = index;
+
             while (!isAtEnd() && Character.isDigit(peek())) {
                 index++;
             }
+
             if (start == index) {
                 throw error("Expected digit.");
             }
@@ -431,12 +555,15 @@ public class JsonSaveGameReader implements SaveGameReader {
             if (!json.startsWith(keyword, index)) {
                 throw error("Unexpected JSON token.");
             }
+
             index += keyword.length();
+
             return value;
         }
 
         private void expect(char expected) {
             skipWhitespace();
+
             if (isAtEnd() || advance() != expected) {
                 throw error("Expected '" + expected + "'.");
             }
@@ -446,7 +573,9 @@ public class JsonSaveGameReader implements SaveGameReader {
             if (isAtEnd() || peek() != expected) {
                 return false;
             }
+
             index++;
+
             return true;
         }
 

@@ -17,16 +17,26 @@ public class TeamSetupService {
     public TeamSetupView buildView(GameSession session) {
         GameSession validatedSession = Objects.requireNonNull(session, "Game session cannot be null.");
         TeamSetupAdapter adapter = registry.getAdapter(validatedSession.getSelectedSportId());
+
+        // Collects all setup data needed by the UI.
         List<LineupSlotView> starters = adapter.describeLineup(validatedSession);
         List<LineupSlotView> bench = adapter.describeBench(validatedSession);
         List<TacticOptionView> tactics = adapter.tacticOptions(validatedSession);
+
         String currentTacticId = adapter.currentTacticId(validatedSession);
-        TacticOptionView selectedOption = tactics.stream()
-                .filter(option -> option.id().equals(currentTacticId))
-                .findFirst()
-                .orElse(null);
+        TacticOptionView selectedOption = null;
+
+        // Finds the tactic option that matches the team's current tactic.
+        for (TacticOptionView option : tactics) {
+            if (option.id().equals(currentTacticId)) {
+                selectedOption = option;
+                break;
+            }
+        }
+
         String validationMessage = adapter.validateLineup(validatedSession);
 
+        // Builds one complete view object for the team setup screen.
         return new TeamSetupView(
                 validatedSession.getSelectedSportId(),
                 validatedSession.getActiveSport().getName(),
@@ -60,6 +70,7 @@ public class TeamSetupService {
         return registry.getAdapter(requireSportId(session)).currentTactic(session);
     }
 
+    // Validates the session and returns the sport id used to select the adapter.
     private String requireSportId(GameSession session) {
         return Objects.requireNonNull(session, "Game session cannot be null.").getSelectedSportId();
     }

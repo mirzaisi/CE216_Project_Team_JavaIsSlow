@@ -41,6 +41,7 @@ public class HandballMatchEngine implements MatchEngine {
         TeamPlan awayPlan = TeamPlan.from(awayLineup, match.getAwayTactic());
 
         Random rng = new Random(seedFor(match));
+
         int homeGoals = scoreGoals(expectedGoals(homePlan, awayPlan, true), rng);
         int awayGoals = scoreGoals(expectedGoals(awayPlan, homePlan, false), rng);
 
@@ -93,25 +94,42 @@ public class HandballMatchEngine implements MatchEngine {
 
         int goals = (int) Math.floor(adjustedExpectedGoals);
         double fractionalPart = adjustedExpectedGoals - goals;
+
         if (extraChance < fractionalPart) {
             goals++;
         }
 
+        return clampGoals(goals);
+    }
+
+    private int clampGoals(int goals) {
         return Math.max(0, Math.min(MAX_GOALS, goals));
     }
 
     private long seedFor(Match match) {
-        long homeHash = hash(match.getHomeTeam().getName());
-        long awayHash = hash(match.getAwayTeam().getName());
-        return (homeHash * 1_000_003L) ^ awayHash ^ seedOffset;
+        long seed = 17L;
+
+        seed = seed * 31L + hash(match.getHomeTeam().getName());
+        seed = seed * 31L + hash(match.getAwayTeam().getName());
+        seed = seed * 31L + seedOffset;
+
+        return seed;
     }
 
     private long hash(String name) {
         return name == null ? 0L : name.hashCode();
     }
 
-    private record TeamPlan(double attack, double defense, double pace, double finishing,
-                            double goalkeeping, double goalIntent, double slowdown) {
+    private record TeamPlan(
+            double attack,
+            double defense,
+            double pace,
+            double finishing,
+            double goalkeeping,
+            double goalIntent,
+            double slowdown
+    ) {
+
         private static TeamPlan from(HandballLineup lineup, Tactic tactic) {
             TeamStrength baseStrength = TeamStrength.from(lineup);
             TacticImpact tacticImpact = TacticImpact.from(tactic);
@@ -132,11 +150,19 @@ public class HandballMatchEngine implements MatchEngine {
         }
     }
 
-    private record TeamStrength(double attack, double defense, double pace, double finishing, double goalkeeping) {
+    private record TeamStrength(
+            double attack,
+            double defense,
+            double pace,
+            double finishing,
+            double goalkeeping
+    ) {
+
         private static TeamStrength from(HandballLineup lineup) {
             Objects.requireNonNull(lineup, "Handball lineup cannot be null.");
 
             List<HandballPlayer> starters = lineup.getStartingPlayers();
+
             if (starters.isEmpty()) {
                 throw new IllegalArgumentException("Handball lineup must have starting players.");
             }
@@ -147,8 +173,10 @@ public class HandballMatchEngine implements MatchEngine {
             double finishingTotal = 0.0;
             double goalkeepingTotal = 0.0;
 
+            // Adds each starter's weighted contribution to the team totals.
             for (HandballPlayer player : starters) {
                 PlayerContribution contribution = PlayerContribution.from(player);
+
                 attackTotal += contribution.attack();
                 defenseTotal += contribution.defense();
                 paceTotal += contribution.pace();
@@ -157,6 +185,7 @@ public class HandballMatchEngine implements MatchEngine {
             }
 
             int size = starters.size();
+
             return new TeamStrength(
                     attackTotal / size,
                     defenseTotal / size,
@@ -167,9 +196,17 @@ public class HandballMatchEngine implements MatchEngine {
         }
     }
 
-    private record PlayerContribution(double attack, double defense, double pace, double finishing, double goalkeeping) {
+    private record PlayerContribution(
+            double attack,
+            double defense,
+            double pace,
+            double finishing,
+            double goalkeeping
+    ) {
+
         private static PlayerContribution from(HandballPlayer player) {
             HandballAttributeProfile profile = player.getAttributeProfile();
+
             if (player.getPosition().isGoalkeeper()) {
                 return new PlayerContribution(
                         profile.getPassing() * 0.30 + profile.getSpeed() * 0.10,
@@ -190,10 +227,24 @@ public class HandballMatchEngine implements MatchEngine {
         }
     }
 
-    private record TacticImpact(double attackModifier, double defenseModifier, double paceModifier,
-                                double finishingModifier, double goalkeepingModifier,
-                                double goalIntent, double slowdown) {
-        private static final TacticImpact NEUTRAL = new TacticImpact(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    private record TacticImpact(
+            double attackModifier,
+            double defenseModifier,
+            double paceModifier,
+            double finishingModifier,
+            double goalkeepingModifier,
+            double goalIntent,
+            double slowdown
+    ) {
+        private static final TacticImpact NEUTRAL = new TacticImpact(
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+        );
 
         private static TacticImpact from(Tactic tactic) {
             if (!(tactic instanceof HandballTactic handballTactic)) {
@@ -208,6 +259,7 @@ public class HandballMatchEngine implements MatchEngine {
             double goalIntent = 0.0;
             double slowdown = 0.0;
 
+            // Applies the main tactical effect based on the selected tempo.
             switch (handballTactic.getTempo()) {
                 case FAST_BREAK -> {
                     attackModifier += 5.0;
@@ -229,10 +281,10 @@ public class HandballMatchEngine implements MatchEngine {
                 }
             }
 
+            // Applies additional slider-based tactic modifiers.
             attackModifier += (handballTactic.getTransitionSpeed() - 50) * 0.10;
             paceModifier += (handballTactic.getTransitionSpeed() - 50) * 0.14;
             finishingModifier += (handballTactic.getTransitionSpeed() - 50) * 0.05;
-
             defenseModifier += (handballTactic.getPressureLevel() - 50) * 0.12;
             goalkeepingModifier += (handballTactic.getPressureLevel() - 50) * 0.05;
             slowdown += Math.max(0, handballTactic.getPressureLevel() - 60) * 0.03;

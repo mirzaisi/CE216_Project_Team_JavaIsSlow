@@ -8,7 +8,9 @@ public record FootballTrainingEffect(
         int speedDelta,
         boolean acceleratedRecovery
 ) {
+
     public FootballTrainingEffect {
+        // Training effects only add temporary positive attribute bonuses.
         if (attackDelta < 0 || defenseDelta < 0 || staminaDelta < 0 || passingDelta < 0 || speedDelta < 0) {
             throw new IllegalArgumentException("Training effect deltas cannot be negative.");
         }

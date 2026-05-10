@@ -9,9 +9,11 @@ import java.util.Objects;
 public final class DefaultSportRegistry {
     private static final int DEFAULT_TEAM_COUNT = 4;
 
+    // Prevents creating objects from this utility/factory class.
     private DefaultSportRegistry() {
     }
 
+    // Creates the default sport registry with all supported sport modules.
     public static SportRegistry create(AssetProvider assetProvider) {
         Objects.requireNonNull(assetProvider, "Asset provider cannot be null.");
 

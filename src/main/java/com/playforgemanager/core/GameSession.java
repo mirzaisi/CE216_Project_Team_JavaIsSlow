@@ -32,9 +32,12 @@ public class GameSession {
             ProgressionState progressionState,
             String selectedSportId
     ) {
+        // Stores the main objects required for a running game session.
         this.activeSport = Objects.requireNonNull(activeSport, "Active sport cannot be null.");
         this.currentSeason = Objects.requireNonNull(currentSeason, "Current season cannot be null.");
         this.controlledTeam = Objects.requireNonNull(controlledTeam, "Controlled team cannot be null.");
+
+        // Tracks where the user currently is in the season flow.
         this.progressionState = Objects.requireNonNull(progressionState, "Progression state cannot be null.");
         this.selectedSportId = validateSportId(selectedSportId);
     }
@@ -71,6 +74,7 @@ public class GameSession {
         this.progressionState = ProgressionState.COMPLETED;
     }
 
+    // Builds a default sport id from the active sport name.
     private static String deriveSportId(Sport activeSport) {
         return Objects.requireNonNull(activeSport, "Active sport cannot be null.")
                 .getName()
@@ -80,9 +84,11 @@ public class GameSession {
 
     private String validateSportId(String selectedSportId) {
         String cleaned = Objects.requireNonNull(selectedSportId, "Selected sport id cannot be null.").trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException("Selected sport id cannot be blank.");
         }
+
         return cleaned;
     }
 }

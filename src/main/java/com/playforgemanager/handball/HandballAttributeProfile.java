@@ -11,6 +11,7 @@ public final class HandballAttributeProfile {
     private final int reflexes;
 
     public HandballAttributeProfile(int shooting, int defense, int passing, int speed, int reflexes) {
+        // Validates every handball attribute before storing it.
         this.shooting = validateAttribute("shooting", shooting);
         this.defense = validateAttribute("defense", defense);
         this.passing = validateAttribute("passing", passing);
@@ -43,9 +44,13 @@ public final class HandballAttributeProfile {
     }
 
     private int validateAttribute(String name, int value) {
+        // Handball attributes must stay inside the shared 0-100 rating range.
         if (value < MIN_ATTRIBUTE || value > MAX_ATTRIBUTE) {
-            throw new IllegalArgumentException(name + " must be between " + MIN_ATTRIBUTE + " and " + MAX_ATTRIBUTE + ".");
+            throw new IllegalArgumentException(
+                    name + " must be between " + MIN_ATTRIBUTE + " and " + MAX_ATTRIBUTE + "."
+            );
         }
+
         return value;
     }
 }

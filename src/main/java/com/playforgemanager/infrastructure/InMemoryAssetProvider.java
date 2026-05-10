@@ -8,23 +8,26 @@ public class InMemoryAssetProvider implements AssetProvider {
 
     @Override
     public List<String> getMaleNames() {
+        // Supplies default male names for generated teams and players.
         return List.of(
-                "Ali", "Mert", "Can", "Emir", "Kerem", "Deniz", "Arda", "Bora",
-                "Eren", "Kaan", "Yigit", "Baris", "Serkan", "Ozan", "Burak", "Hakan",
-                "Tuna", "Umut", "Cem", "Volkan"
+                "Ali", "Mert", "Can", "Emir", "Kerem", "Deniz",
+                "Arda", "Bora", "Eren", "Kaan", "Yigit", "Baris", "Serkan",
+                "Ozan", "Burak", "Hakan","Tuna", "Umut", "Cem", "Volkan"
         );
     }
 
     @Override
     public List<String> getFemaleNames() {
+        // Supplies default female names for generated teams and players.
         return List.of(
-                "Ece", "Zeynep", "Defne", "Elif", "Aylin", "Mina", "Sena", "Yasemin",
-                "Derya", "Selin", "Naz", "Irem"
+                "Ece", "Zeynep", "Defne", "Elif", "Aylin", "Mina",
+                "Sena", "Yasemin", "Derya", "Selin", "Naz", "Irem"
         );
     }
 
     @Override
     public List<String> getTeamNames() {
+        // Supplies default team names used by sport factories.
         return List.of(
                 "Red Hawks",
                 "Blue Wolves",
@@ -37,6 +40,7 @@ public class InMemoryAssetProvider implements AssetProvider {
 
     @Override
     public List<String> getLogoReferences() {
+        // Supplies stable logo reference ids matching the default team list.
         return List.of(
                 "logo-red-hawks",
                 "logo-blue-wolves",

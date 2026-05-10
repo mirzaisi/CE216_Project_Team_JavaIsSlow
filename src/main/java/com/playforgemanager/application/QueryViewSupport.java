@@ -1,7 +1,6 @@
 package com.playforgemanager.application;
 
 import com.playforgemanager.core.Fixture;
-import com.playforgemanager.core.GameSession;
 import com.playforgemanager.core.Match;
 import com.playforgemanager.core.Player;
 import com.playforgemanager.core.Team;
@@ -13,26 +12,34 @@ import java.util.List;
 import java.util.Objects;
 
 final class QueryViewSupport {
+
+    // Prevents creating objects from this shared query-view helper class.
     private QueryViewSupport() {
     }
 
     static int countAvailablePlayers(Team team) {
         int availablePlayers = 0;
+
+        // Counts only players who are currently available.
         for (Player player : team.getRoster()) {
             if (player.isAvailable()) {
                 availablePlayers++;
             }
         }
+
         return availablePlayers;
     }
 
     static FixtureSummaryView toFixtureSummary(Fixture fixture, Team controlledTeam) {
         Objects.requireNonNull(fixture, "Fixture cannot be null.");
+
         boolean controlledInvolved = controlledTeam != null
                 && (fixture.getHomeTeam() == controlledTeam || fixture.getAwayTeam() == controlledTeam);
+
         boolean controlledHome = controlledInvolved && fixture.getHomeTeam() == controlledTeam;
         Match playedMatch = fixture.getPlayedMatch();
 
+        // Converts a fixture into a display-ready summary object.
         return new FixtureSummaryView(
                 fixture.getWeek(),
                 fixture.getHomeTeam().getName(),
@@ -47,52 +54,68 @@ final class QueryViewSupport {
 
     static List<FixtureSummaryView> buildFixtureSummaries(List<Fixture> fixtures, Team controlledTeam) {
         List<FixtureSummaryView> summaries = new ArrayList<>(fixtures.size());
+
+        // Converts every fixture into its summary view.
         for (Fixture fixture : fixtures) {
             summaries.add(toFixtureSummary(fixture, controlledTeam));
         }
+
         return List.copyOf(summaries);
     }
 
     static String roleLabel(Player player) {
         Objects.requireNonNull(player, "Player cannot be null.");
+
+        // Tries to read a sport-specific position label first.
         String reflectedLabel = invokeZeroArgString(player, "getPosition");
+
         if (reflectedLabel != null) {
             return reflectedLabel;
         }
+
+        // Falls back to a general role label if position is unavailable.
         reflectedLabel = invokeZeroArgString(player, "getRole");
+
         if (reflectedLabel != null) {
             return reflectedLabel;
         }
+
         return "Player";
     }
 
     static List<PlayerSummaryView> buildPlayerSummaries(Team team) {
         Objects.requireNonNull(team, "Team cannot be null.");
+
         List<? extends Player> selectedPlayers = team.getSelectedLineup() == null
                 ? List.of()
                 : team.getSelectedLineup().getSelectedPlayers();
 
-        return team.getRoster().stream()
-                .sorted(Comparator.comparing(Player::getName))
-                .map(player -> new PlayerSummaryView(
-                        player.getId(),
-                        player.getName(),
-                        roleLabel(player),
-                        player.isAvailable(),
-                        player.getInjuryMatchesRemaining(),
-                        selectedPlayers.contains(player)
-                ))
-                .toList();
-    }
+        List<Player> sortedPlayers = new ArrayList<>(team.getRoster());
 
-    static Team findControlledTeam(GameSession session) {
-        return Objects.requireNonNull(session, "Game session cannot be null.").getControlledTeam();
+        // Sorts players by name before building the display list.
+        sortedPlayers.sort(Comparator.comparing(Player::getName));
+
+        List<PlayerSummaryView> playerSummaries = new ArrayList<>();
+
+        for (Player player : sortedPlayers) {
+            playerSummaries.add(new PlayerSummaryView(
+                    player.getId(),
+                    player.getName(),
+                    roleLabel(player),
+                    player.isAvailable(),
+                    player.getInjuryMatchesRemaining(),
+                    selectedPlayers.contains(player)
+            ));
+        }
+
+        return List.copyOf(playerSummaries);
     }
 
     private static String invokeZeroArgString(Object target, String methodName) {
         try {
             Method method = target.getClass().getMethod(methodName);
             Object result = method.invoke(target);
+
             return result == null ? null : result.toString();
         } catch (ReflectiveOperationException ignored) {
             return null;

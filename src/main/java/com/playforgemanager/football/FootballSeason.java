@@ -9,6 +9,7 @@ import com.playforgemanager.core.StandingsPolicy;
 import com.playforgemanager.core.Tactic;
 import com.playforgemanager.core.Team;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -24,7 +25,11 @@ public class FootballSeason extends com.playforgemanager.core.Season {
 
     public FootballSeason(League league, FootballTrainingEffectService trainingEffectService) {
         super(league);
-        this.trainingEffectService = Objects.requireNonNull(trainingEffectService, "Training effect service cannot be null.");
+
+        this.trainingEffectService = Objects.requireNonNull(
+                trainingEffectService,
+                "Training effect service cannot be null."
+        );
         this.standings = buildInitialStandings();
     }
 
@@ -33,14 +38,22 @@ public class FootballSeason extends com.playforgemanager.core.Season {
     }
 
     public List<Fixture> getCurrentWeekFixtures() {
-        return getLeague().getFixtures().stream()
-                .filter(fixture -> fixture.getWeek() == getCurrentWeek())
-                .toList();
+        List<Fixture> currentWeekFixtures = new ArrayList<>();
+
+        // Collects only the fixtures scheduled for the current season week.
+        for (Fixture fixture : getLeague().getFixtures()) {
+            if (fixture.getWeek() == getCurrentWeek()) {
+                currentWeekFixtures.add(fixture);
+            }
+        }
+
+        return currentWeekFixtures;
     }
 
     void prepareMatch(Match match, Sport sport) {
         Objects.requireNonNull(match, "Match cannot be null.");
         Objects.requireNonNull(sport, "Sport cannot be null.");
+
         applySelectedSetup(match, match.getHomeTeam(), match.getAwayTeam(), sport);
     }
 
@@ -51,17 +64,20 @@ public class FootballSeason extends com.playforgemanager.core.Season {
         if (isCompleted()) {
             throw new IllegalStateException("Season is already completed.");
         }
+
         if (getLeague().getFixtures().isEmpty()) {
             throw new IllegalStateException("Season has no scheduled fixtures.");
         }
 
         List<Fixture> currentWeekFixtures = getCurrentWeekFixtures();
+
         if (currentWeekFixtures.isEmpty()) {
             throw new IllegalStateException("No fixtures scheduled for week " + getCurrentWeek() + ".");
         }
 
         applyWeeklyTrainingEffects(sport);
 
+        // Plays every unplayed fixture in the current week.
         for (Fixture fixture : currentWeekFixtures) {
             if (fixture.isPlayed()) {
                 continue;
@@ -79,6 +95,7 @@ public class FootballSeason extends com.playforgemanager.core.Season {
             sport.getInjuryPolicy().applyPostMatch(match);
         }
 
+        // Recovers players after all current-week fixtures have been processed.
         for (Team team : getLeague().getTeams()) {
             sport.getInjuryPolicy().recoverPlayers(team);
         }
@@ -89,9 +106,11 @@ public class FootballSeason extends com.playforgemanager.core.Season {
 
     public void refreshStandings(StandingsPolicy standingsPolicy) {
         Objects.requireNonNull(standingsPolicy, "Standings policy cannot be null.");
+
         if (!(standingsPolicy instanceof FootballStandingsPolicy footballStandingsPolicy)) {
             throw new IllegalArgumentException("FootballSeason requires FootballStandingsPolicy.");
         }
+
         this.standings = footballStandingsPolicy.calculateTable(getLeague());
     }
 
@@ -99,52 +118,40 @@ public class FootballSeason extends com.playforgemanager.core.Season {
         return isCompleted();
     }
 
-    /**
-     * Creates the next playable football season from a completed season.
-     *
-     * Carry-over decision:
-     * - Teams, player identities, base attributes, coaches, selected tactic, and training plan carry over.
-     * - Fixture results, standings rows, current week, completed state, selected lineups, weekly training effects,
-     *   and short-term injury/availability blocks reset.
-     *
-     * The selected lineup is intentionally cleared because it is a match-week decision and may contain players whose
-     * availability changed near the end of the previous season. The next season will build or accept a fresh lineup
-     * through the normal football rules before the first match.
-     */
     public FootballSeason createNextSeason(Sport sport) {
         Objects.requireNonNull(sport, "Sport cannot be null.");
+
         requireCompletedForNextSeason();
         requireFootballRuleset(sport);
 
         FootballLeague nextLeague = new FootballLeague(getLeague().getName());
+
+        // Carries existing football teams into the next generated season.
         for (Team team : getLeague().getTeams()) {
             FootballTeam footballTeam = requireFootballTeam(team);
+
             prepareTeamForNextSeason(footballTeam);
             nextLeague.addTeam(footballTeam);
         }
 
         List<Fixture> nextFixtures = sport.getScheduler().generateFixtures(nextLeague.getTeams());
+
         if (nextFixtures.isEmpty()) {
             throw new IllegalStateException("Next football season must contain scheduled fixtures.");
         }
+
         nextLeague.addFixtures(nextFixtures);
 
         FootballSeason nextSeason = new FootballSeason(nextLeague, trainingEffectService);
-        nextSeason.refreshStandings(sport.getStandingsPolicy());
-        return nextSeason;
-    }
 
-    /**
-     * Kept only for backward compatibility with earlier milestone code.
-     * New code should call createNextSeason(Sport) or FootballSeasonRolloverService.rollOver(...).
-     */
-    @Deprecated
-    public FootballSeason createNextSeasonStub() {
-        return createNextSeason(new FootballSport());
+        nextSeason.refreshStandings(sport.getStandingsPolicy());
+
+        return nextSeason;
     }
 
     public void restoreProgress(int currentWeek, boolean completed) {
         setCurrentWeek(currentWeek);
+
         if (completed) {
             markCompleted();
         }
@@ -152,22 +159,32 @@ public class FootballSeason extends com.playforgemanager.core.Season {
 
     @Override
     protected void doAdvanceWeek() {
-        int lastScheduledWeek = getLeague().getFixtures().stream()
-                .mapToInt(Fixture::getWeek)
-                .max()
-                .orElse(0);
+        int lastScheduledWeek = 0;
+
+        // Finds the final week that has at least one scheduled fixture.
+        for (Fixture fixture : getLeague().getFixtures()) {
+            if (fixture.getWeek() > lastScheduledWeek) {
+                lastScheduledWeek = fixture.getWeek();
+            }
+        }
 
         if (lastScheduledWeek == 0 || getCurrentWeek() >= lastScheduledWeek) {
             markCompleted();
             return;
         }
+
         setCurrentWeek(getCurrentWeek() + 1);
     }
 
     private List<FootballStandingRow> buildInitialStandings() {
-        return getLeague().getTeams().stream()
-                .map(FootballStandingRow::new)
-                .toList();
+        List<FootballStandingRow> standingRows = new ArrayList<>();
+
+        // Creates an empty standings row for each league team.
+        for (Team team : getLeague().getTeams()) {
+            standingRows.add(new FootballStandingRow(team));
+        }
+
+        return standingRows;
     }
 
     private void applySelectedSetup(Match match, Team homeTeam, Team awayTeam, Sport sport) {
@@ -178,9 +195,15 @@ public class FootballSeason extends com.playforgemanager.core.Season {
     private void applyWeeklyTrainingEffects(Sport sport) {
         FootballRuleset footballRuleset = requireFootballRuleset(sport);
 
+        // Applies each team's selected training plan before match simulation.
         for (Team team : getLeague().getTeams()) {
             FootballTeam footballTeam = requireFootballTeam(team);
-            trainingEffectService.applyWeeklyTraining(footballTeam, footballRuleset, sport.getInjuryPolicy());
+
+            trainingEffectService.applyWeeklyTraining(
+                    footballTeam,
+                    footballRuleset,
+                    sport.getInjuryPolicy()
+            );
         }
     }
 
@@ -197,28 +220,35 @@ public class FootballSeason extends com.playforgemanager.core.Season {
 
         FootballRuleset footballRuleset = requireFootballRuleset(sport);
         FootballLineup autoLineup = footballRuleset.buildLineup(footballTeam.getAvailablePlayers());
+
         footballTeam.assignLineup(autoLineup, footballRuleset);
+
         return autoLineup;
     }
 
     private void validateLineup(Lineup lineup, Sport sport) {
         FootballRuleset footballRuleset = requireFootballRuleset(sport);
+
         footballRuleset.validateLineupOrThrow(lineup);
     }
 
     private FootballRuleset requireFootballRuleset(Sport sport) {
         Objects.requireNonNull(sport, "Sport cannot be null.");
+
         if (!(sport.getRuleset() instanceof FootballRuleset footballRuleset)) {
             throw new IllegalArgumentException("FootballSeason requires FootballRuleset.");
         }
+
         return footballRuleset;
     }
 
     private FootballTeam requireFootballTeam(Team team) {
         Objects.requireNonNull(team, "Team cannot be null.");
+
         if (!(team instanceof FootballTeam footballTeam)) {
             throw new IllegalStateException("FootballSeason expects FootballTeam instances.");
         }
+
         return footballTeam;
     }
 
@@ -230,6 +260,8 @@ public class FootballSeason extends com.playforgemanager.core.Season {
 
     private void prepareTeamForNextSeason(FootballTeam team) {
         team.setSelectedLineup(null);
+
+        // Clears temporary player state before the next season starts.
         for (FootballPlayer player : team.getFootballPlayers()) {
             resetPlayerForNextSeason(player);
         }
@@ -237,10 +269,13 @@ public class FootballSeason extends com.playforgemanager.core.Season {
 
     private void resetPlayerForNextSeason(FootballPlayer player) {
         Objects.requireNonNull(player, "Football player cannot be null.");
+
         player.clearWeeklyTrainingEffect();
+
         while (player.getInjuryMatchesRemaining() > 0) {
             player.recoverOneMatch();
         }
+
         player.setAvailable(true);
     }
 
@@ -260,7 +295,9 @@ public class FootballSeason extends com.playforgemanager.core.Season {
                 55,
                 55
         );
+
         footballTeam.assignTactic(defaultTactic);
+
         return defaultTactic;
     }
 }

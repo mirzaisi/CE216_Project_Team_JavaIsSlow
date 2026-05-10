@@ -64,6 +64,7 @@ public final class HandballRuleset implements Ruleset {
 
     public void validateLineupOrThrow(Lineup lineup) {
         Objects.requireNonNull(lineup, "Lineup cannot be null.");
+
         if (!(lineup instanceof HandballLineup handballLineup)) {
             throw new IllegalArgumentException("Handball rules require a HandballLineup instance.");
         }
@@ -74,13 +75,14 @@ public final class HandballRuleset implements Ruleset {
             );
         }
 
-        validateStartingPositionCount(handballLineup, HandballPosition.GOALKEEPER, 1);
-        validateStartingPositionCount(handballLineup, HandballPosition.LEFT_WING, 1);
-        validateStartingPositionCount(handballLineup, HandballPosition.RIGHT_WING, 1);
-        validateStartingPositionCount(handballLineup, HandballPosition.LEFT_BACK, 1);
-        validateStartingPositionCount(handballLineup, HandballPosition.CENTER_BACK, 1);
-        validateStartingPositionCount(handballLineup, HandballPosition.RIGHT_BACK, 1);
-        validateStartingPositionCount(handballLineup, HandballPosition.PIVOT, 1);
+        // Ensures the starting lineup has exactly one player for each required position.
+        validateStartingPositionCount(handballLineup, HandballPosition.GOALKEEPER);
+        validateStartingPositionCount(handballLineup, HandballPosition.LEFT_WING);
+        validateStartingPositionCount(handballLineup, HandballPosition.RIGHT_WING);
+        validateStartingPositionCount(handballLineup, HandballPosition.LEFT_BACK);
+        validateStartingPositionCount(handballLineup, HandballPosition.CENTER_BACK);
+        validateStartingPositionCount(handballLineup, HandballPosition.RIGHT_BACK);
+        validateStartingPositionCount(handballLineup, HandballPosition.PIVOT);
 
         if (handballLineup.getBenchPlayers().size() > getBenchSize()) {
             throw new IllegalArgumentException(
@@ -89,10 +91,13 @@ public final class HandballRuleset implements Ruleset {
         }
 
         Set<String> seenIds = new HashSet<>();
+
+        // Rejects duplicate or unavailable players in the complete lineup.
         for (HandballPlayer player : handballLineup.getAllPlayers()) {
             if (!seenIds.add(player.getId())) {
                 throw new IllegalArgumentException("Duplicate handball player in lineup: " + player.getId());
             }
+
             if (!player.isAvailable()) {
                 throw new IllegalArgumentException(
                         "Unavailable handball player cannot be selected: " + player.getName()
@@ -105,12 +110,15 @@ public final class HandballRuleset implements Ruleset {
         Objects.requireNonNull(availablePlayers, "Available players cannot be null.");
 
         List<HandballPlayer> playerPool = new ArrayList<>(availablePlayers.size());
+
+        // Copies the available player list while rejecting null entries.
         for (HandballPlayer player : availablePlayers) {
             playerPool.add(Objects.requireNonNull(player, "Available player cannot be null."));
         }
 
         List<HandballPlayer> starters = new ArrayList<>(getStartingLineupSize());
         Set<String> selectedIds = new HashSet<>();
+
         addRequiredStarter(playerPool, starters, selectedIds, HandballPosition.GOALKEEPER);
         addRequiredStarter(playerPool, starters, selectedIds, HandballPosition.LEFT_WING);
         addRequiredStarter(playerPool, starters, selectedIds, HandballPosition.RIGHT_WING);
@@ -120,28 +128,36 @@ public final class HandballRuleset implements Ruleset {
         addRequiredStarter(playerPool, starters, selectedIds, HandballPosition.PIVOT);
 
         List<HandballPlayer> bench = new ArrayList<>();
+
+        // Fills the bench with remaining available players up to the bench limit.
         for (HandballPlayer player : playerPool) {
             if (bench.size() == getBenchSize()) {
                 break;
             }
+
             if (player.isAvailable() && selectedIds.add(player.getId())) {
                 bench.add(player);
             }
         }
 
         HandballLineup lineup = new HandballLineup(starters, bench);
+
         validateLineupOrThrow(lineup);
+
         return lineup;
     }
 
     public MatchOutcome determineOutcome(int goalsScored, int goalsConceded) {
         validateScore(goalsScored, goalsConceded);
+
         if (goalsScored > goalsConceded) {
             return MatchOutcome.WIN;
         }
+
         if (goalsScored < goalsConceded) {
             return MatchOutcome.LOSS;
         }
+
         return MatchOutcome.DRAW;
     }
 
@@ -151,10 +167,6 @@ public final class HandballRuleset implements Ruleset {
             case DRAW -> getDrawPoints();
             case LOSS -> getLossPoints();
         };
-    }
-
-    public int getPointsForResult(int goalsScored, int goalsConceded) {
-        return getPointsForOutcome(determineOutcome(goalsScored, goalsConceded));
     }
 
     private void validateScore(int goalsScored, int goalsConceded) {
@@ -181,21 +193,19 @@ public final class HandballRuleset implements Ruleset {
         );
     }
 
-    private void validateStartingPositionCount(
-            HandballLineup lineup,
-            HandballPosition position,
-            int expectedCount
-    ) {
-        long actualCount = lineup.getStartingPlayers().stream()
-                .filter(player -> player.getPosition() == position)
-                .count();
-        if (actualCount != expectedCount) {
+    private void validateStartingPositionCount(HandballLineup lineup, HandballPosition position) {
+        long actualCount = 0;
+
+        for (HandballPlayer player : lineup.getStartingPlayers()) {
+            if (player.getPosition() == position) {
+                actualCount++;
+            }
+        }
+
+        if (actualCount != 1) {
             throw new IllegalArgumentException(
                     "Handball starting lineup must contain exactly "
-                            + expectedCount
-                            + " "
-                            + position.name()
-                            + " players."
+                            + 1 + " " + position.name() + " players."
             );
         }
     }

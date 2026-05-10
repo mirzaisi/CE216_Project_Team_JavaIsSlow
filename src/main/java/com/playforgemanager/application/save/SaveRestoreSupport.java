@@ -8,22 +8,30 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class SaveRestoreSupport {
+
+    // Prevents creating objects from this utility/helper class.
     private SaveRestoreSupport() {
     }
 
     public static Map<String, String> propertyMap(List<SavePropertyValue> properties) {
         Map<String, String> values = new LinkedHashMap<>();
+
+        // Converts saved property objects into a simple key-value map.
         for (SavePropertyValue property : Objects.requireNonNull(properties, "Properties cannot be null.")) {
             values.put(property.key(), property.value());
         }
+
         return values;
     }
 
     public static String requireString(Map<String, String> values, String key, String sport) {
         String value = values.get(key);
+
+        // Required saved properties must exist and contain text.
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("Missing saved " + sport + " property: " + key);
         }
+
         return value;
     }
 
@@ -40,9 +48,12 @@ public final class SaveRestoreSupport {
 
     public static int optionalInt(Map<String, String> values, String key, int defaultValue, String sport) {
         String value = values.get(key);
+
+        // Missing optional integer properties fall back to the given default value.
         if (value == null || value.isBlank()) {
             return defaultValue;
         }
+
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException exception) {
@@ -55,24 +66,36 @@ public final class SaveRestoreSupport {
 
     public static boolean requireBoolean(Map<String, String> values, String key, String sport) {
         String value = requireString(values, key, sport);
+
+        // Saved booleans must be written as true or false.
         if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value)) {
             throw new IllegalArgumentException(
                     "Saved " + sport + " property must be true or false: " + key
             );
         }
+
         return Boolean.parseBoolean(value);
     }
 
-    public static boolean optionalBoolean(Map<String, String> values, String key, boolean defaultValue, String sport) {
+    public static boolean optionalBoolean(
+            Map<String, String> values,
+            String key,
+            boolean defaultValue,
+            String sport
+    ) {
         String value = values.get(key);
+
+        // Missing optional boolean properties fall back to the given default value.
         if (value == null || value.isBlank()) {
             return defaultValue;
         }
+
         if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value)) {
             throw new IllegalArgumentException(
                     "Saved " + sport + " property must be true or false: " + key
             );
         }
+
         return Boolean.parseBoolean(value);
     }
 

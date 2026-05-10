@@ -13,19 +13,27 @@ public record SaveTeamData(
         SaveTrainingPlanData selectedTrainingPlan,
         List<SavePropertyValue> properties
 ) {
+
     public SaveTeamData {
+        // Validates and cleans the basic team identity fields.
         id = requireText(id, "Team id cannot be blank.");
         name = requireText(name, "Team name cannot be blank.");
+
+        // Stores team staff and roster data as safe unmodifiable lists.
         coaches = List.copyOf(Objects.requireNonNull(coaches, "Coaches cannot be null."));
         players = List.copyOf(Objects.requireNonNull(players, "Players cannot be null."));
+
+        // Stores extra team-specific save properties safely.
         properties = List.copyOf(Objects.requireNonNull(properties, "Team properties cannot be null."));
     }
 
     private static String requireText(String value, String message) {
         String cleaned = Objects.requireNonNull(value, message).trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
+
         return cleaned;
     }
 }

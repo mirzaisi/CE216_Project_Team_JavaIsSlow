@@ -23,9 +23,11 @@ public class HandballInjuryPolicy implements InjuryPolicy {
     }
 
     public HandballInjuryPolicy(int injuryDurationMatches) {
+        // Injury duration must be at least one match.
         if (injuryDurationMatches <= 0) {
             throw new IllegalArgumentException("Injury duration must be positive.");
         }
+
         this.injuryDurationMatches = injuryDurationMatches;
         this.newlyInjuredPlayers = Collections.newSetFromMap(new IdentityHashMap<>());
     }
@@ -39,6 +41,7 @@ public class HandballInjuryPolicy implements InjuryPolicy {
         }
 
         Team targetTeam = pickLosingSide(match);
+
         Lineup targetLineup = targetTeam == match.getHomeTeam()
                 ? match.getHomeLineup()
                 : match.getAwayLineup();
@@ -48,12 +51,16 @@ public class HandballInjuryPolicy implements InjuryPolicy {
         }
 
         List<? extends Player> starters = targetLineup.getSelectedPlayers();
+
         if (starters == null || starters.isEmpty()) {
             return;
         }
 
+        // Picks a deterministic player slot based on the scoreline.
         int index = Math.floorMod(match.getHomeScore() + match.getAwayScore(), starters.size());
+
         Player victim = starters.get(index);
+
         applyInjury(targetTeam, victim, injuryDurationMatches);
     }
 
@@ -66,6 +73,7 @@ public class HandballInjuryPolicy implements InjuryPolicy {
                 if (newlyInjuredPlayers.remove(player)) {
                     continue;
                 }
+
                 player.recoverOneMatch();
             }
         }
@@ -79,6 +87,8 @@ public class HandballInjuryPolicy implements InjuryPolicy {
         if (victim != null && victim.getInjuryMatchesRemaining() == 0) {
             victim.injureForMatches(durationMatches);
             newlyInjuredPlayers.add(victim);
+
+            // Clears the selected lineup because the team setup may no longer be valid.
             team.setSelectedLineup(null);
         }
     }
@@ -87,9 +97,11 @@ public class HandballInjuryPolicy implements InjuryPolicy {
         if (match.getHomeScore() < match.getAwayScore()) {
             return match.getHomeTeam();
         }
+
         if (match.getAwayScore() < match.getHomeScore()) {
             return match.getAwayTeam();
         }
+
         return match.getHomeTeam();
     }
 }

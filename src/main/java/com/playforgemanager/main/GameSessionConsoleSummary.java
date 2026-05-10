@@ -20,6 +20,8 @@ public class GameSessionConsoleSummary {
 
         System.out.println("Generated Teams");
         System.out.println("---------------");
+
+        // Prints a compact roster summary for each generated team.
         for (Team team : league.getTeams()) {
             System.out.printf(
                     "- %-15s | Players: %-2d%n",

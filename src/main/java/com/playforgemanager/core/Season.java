@@ -8,6 +8,7 @@ public abstract class Season {
     private boolean completed;
 
     protected Season(League league) {
+        // Every season must belong to a valid league.
         this.league = Objects.requireNonNull(league, "League cannot be null.");
         this.currentWeek = 1;
         this.completed = false;
@@ -29,15 +30,18 @@ public abstract class Season {
         if (completed) {
             throw new IllegalStateException("Season is already completed.");
         }
+
         doAdvanceWeek();
     }
 
     protected abstract void doAdvanceWeek();
 
     protected final void setCurrentWeek(int currentWeek) {
+        // Current week must always stay inside valid season numbering.
         if (currentWeek < 1) {
             throw new IllegalArgumentException("Current week must be at least 1.");
         }
+
         this.currentWeek = currentWeek;
     }
 

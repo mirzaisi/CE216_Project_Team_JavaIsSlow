@@ -11,6 +11,7 @@ public final class FootballAttributeProfile {
     private final int speed;
 
     public FootballAttributeProfile(int attack, int defense, int stamina, int passing, int speed) {
+        // Validates every football attribute before storing it.
         this.attack = validateAttribute("attack", attack);
         this.defense = validateAttribute("defense", defense);
         this.stamina = validateAttribute("stamina", stamina);
@@ -18,17 +19,38 @@ public final class FootballAttributeProfile {
         this.speed = validateAttribute("speed", speed);
     }
 
-    public int getAttack() { return attack; }
-    public int getDefense() { return defense; }
-    public int getStamina() { return stamina; }
-    public int getPassing() { return passing; }
-    public int getSpeed() { return speed; }
-    public int getOverallRating() { return Math.round((attack + defense + stamina + passing + speed) / 5.0f); }
+    public int getAttack() {
+        return attack;
+    }
 
-    private int validateAttribute(String name, int value) {
+    public int getDefense() {
+        return defense;
+    }
+
+    public int getStamina() {
+        return stamina;
+    }
+
+    public int getPassing() {
+        return passing;
+    }
+
+    public int getSpeed() {
+        return speed;
+    }
+
+    public int getOverallRating() {
+        return Math.round((attack + defense + stamina + passing + speed) / 5.0f);
+    }
+
+    private static int validateAttribute(String name, int value) {
+        // Football attributes must stay inside the shared 0-100 rating range.
         if (value < MIN_ATTRIBUTE || value > MAX_ATTRIBUTE) {
-            throw new IllegalArgumentException(name + " must be between " + MIN_ATTRIBUTE + " and " + MAX_ATTRIBUTE + ".");
+            throw new IllegalArgumentException(
+                    name + " must be between " + MIN_ATTRIBUTE + " and " + MAX_ATTRIBUTE + "."
+            );
         }
+
         return value;
     }
 }

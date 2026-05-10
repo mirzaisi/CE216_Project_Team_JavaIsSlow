@@ -33,15 +33,13 @@ public class HandballSportFactory implements SportFactory {
     private final AssetProvider assetProvider;
     private final int initialTeamCount;
 
-    public HandballSportFactory(AssetProvider assetProvider) {
-        this(assetProvider, 4);
-    }
-
     public HandballSportFactory(AssetProvider assetProvider, int initialTeamCount) {
         this.assetProvider = Objects.requireNonNull(assetProvider, "Asset provider cannot be null.");
+
         if (initialTeamCount < 2) {
             throw new IllegalArgumentException("Initial team count must be at least 2.");
         }
+
         this.initialTeamCount = initialTeamCount;
     }
 
@@ -57,19 +55,29 @@ public class HandballSportFactory implements SportFactory {
 
     @Override
     public League createLeague(String leagueName) {
-        HandballLeague league = new HandballLeague(Objects.requireNonNull(leagueName, "League name cannot be null."));
-        List<String> teamNames = collectNormalizedValues(assetProvider.getTeamNames(), "Asset provider must supply team names.");
+        HandballLeague league = new HandballLeague(
+                Objects.requireNonNull(leagueName, "League name cannot be null.")
+        );
+
+        List<String> teamNames = collectNormalizedValues(
+                assetProvider.getTeamNames(),
+                "Asset provider must supply team names."
+        );
+
         if (teamNames.size() < initialTeamCount) {
             throw new IllegalStateException("Asset provider does not supply enough team names.");
         }
 
         HandballRuleset ruleset = new HandballRuleset();
 
+        // Creates the initial handball teams and prepares each one for matches.
         for (int i = 0; i < initialTeamCount; i++) {
             HandballTeam team = new HandballTeam("handball-team-" + (i + 1), teamNames.get(i));
+
             populatePlayers(team, i);
             populateCoach(team, i);
             configureMatchPreparation(team, i, ruleset);
+
             league.addTeam(team);
         }
 
@@ -83,30 +91,36 @@ public class HandballSportFactory implements SportFactory {
 
     private void populatePlayers(HandballTeam team, int teamIndex) {
         List<String> names = collectPeopleNames();
+
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply player names.");
         }
 
+        // Creates a default squad using the fixed handball position pattern.
         for (int i = 0; i < DEFAULT_SQUAD_SIZE; i++) {
             HandballPosition position = DEFAULT_POSITION_PATTERN[i];
             String baseName = names.get((teamIndex * DEFAULT_SQUAD_SIZE + i) % names.size());
+
             HandballPlayer player = new HandballPlayer(
                     "handball-player-" + (teamIndex + 1) + "-" + (i + 1),
                     baseName + " " + (i + 1),
                     position,
                     createAttributeProfile(position, teamIndex, i)
             );
+
             team.addPlayer(player);
         }
     }
 
     private void populateCoach(HandballTeam team, int teamIndex) {
         List<String> names = collectPeopleNames();
+
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply coach names.");
         }
 
         String coachName = names.get(teamIndex % names.size()) + " Coach";
+
         HandballCoach coach = new HandballCoach(
                 "handball-coach-" + (teamIndex + 1),
                 coachName,
@@ -114,10 +128,12 @@ public class HandballSportFactory implements SportFactory {
                 chooseCoachSpecialization(teamIndex),
                 70 + (teamIndex % 21)
         );
+
         team.addCoach(coach);
     }
 
     private void configureMatchPreparation(HandballTeam team, int teamIndex, HandballRuleset ruleset) {
+        // Assigns default tactic, training plan, and valid lineup for the generated team.
         team.assignTactic(createDefaultTactic(teamIndex));
         team.assignTrainingPlan(new HandballTrainingPlan("Transition Balance", 62, 58, 55, true));
         team.assignLineup(ruleset.buildLineup(team.getHandballPlayers()), ruleset);
@@ -156,9 +172,14 @@ public class HandballSportFactory implements SportFactory {
         };
     }
 
-    private HandballAttributeProfile createAttributeProfile(HandballPosition position, int teamIndex, int playerIndex) {
+    private HandballAttributeProfile createAttributeProfile(
+            HandballPosition position,
+            int teamIndex,
+            int playerIndex
+    ) {
         int variance = (teamIndex * 7 + playerIndex * 3) % 11;
 
+        // Builds position-based handball attributes with small deterministic variance.
         return switch (position) {
             case GOALKEEPER -> new HandballAttributeProfile(
                     clamp(32 + variance),
@@ -209,17 +230,22 @@ public class HandballSportFactory implements SportFactory {
 
     private List<String> collectPeopleNames() {
         List<String> names = new ArrayList<>();
+
         names.addAll(collectNormalizedValues(assetProvider.getMaleNames(), null));
         names.addAll(collectNormalizedValues(assetProvider.getFemaleNames(), null));
+
         return names;
     }
 
     private List<String> collectNormalizedValues(List<?> source, String emptyMessage) {
         List<String> values = new ArrayList<>();
+
+        // Converts asset entries into trimmed non-empty strings.
         if (source != null) {
             for (Object entry : source) {
                 if (entry != null) {
                     String value = entry.toString().trim();
+
                     if (!value.isEmpty()) {
                         values.add(value);
                     }

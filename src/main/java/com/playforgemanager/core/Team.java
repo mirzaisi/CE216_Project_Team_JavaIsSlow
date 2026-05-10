@@ -14,12 +14,15 @@ public abstract class Team {
     private TrainingPlan trainingPlan;
 
     protected Team(String id, String name) {
+        // Team identity fields must always contain valid text.
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Team id cannot be blank.");
         }
+
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Team name cannot be blank.");
         }
+
         this.id = id;
         this.name = name;
         this.roster = new ArrayList<>();
@@ -39,18 +42,23 @@ public abstract class Team {
 
     public void addPlayer(Player player) {
         Objects.requireNonNull(player, "Player cannot be null.");
-        boolean duplicateId = roster.stream()
-                .anyMatch(existing -> existing.getId().equals(player.getId()));
-        if (duplicateId) {
-            throw new IllegalArgumentException("A player with the same id is already in the roster.");
+
+        // Prevents duplicate players with the same id from entering the roster.
+        for (Player existing : roster) {
+            if (existing.getId().equals(player.getId())) {
+                throw new IllegalArgumentException("A player with the same id is already in the roster.");
+            }
         }
+
         roster.add(player);
     }
 
     public boolean removePlayer(String playerId) {
+        // Player id must be valid before attempting removal.
         if (playerId == null || playerId.isBlank()) {
             throw new IllegalArgumentException("Player id cannot be blank.");
         }
+
         return roster.removeIf(player -> player.getId().equals(playerId));
     }
 

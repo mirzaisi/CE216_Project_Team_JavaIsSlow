@@ -5,9 +5,14 @@ import java.util.Objects;
 public class PostMatchSummaryQueryService {
 
     public PostMatchSummaryView build(MatchProcessingResult result) {
-        MatchProcessingResult validatedResult = Objects.requireNonNull(result, "Match processing result cannot be null.");
+        MatchProcessingResult validatedResult = Objects.requireNonNull(
+                result,
+                "Match processing result cannot be null."
+        );
 
         String outcomeLabel;
+
+        // Determines the controlled team's result from the final score.
         if (validatedResult.getControlledTeamScore() > validatedResult.getOpponentScore()) {
             outcomeLabel = "WIN";
         } else if (validatedResult.getControlledTeamScore() < validatedResult.getOpponentScore()) {
@@ -16,6 +21,7 @@ public class PostMatchSummaryQueryService {
             outcomeLabel = "DRAW";
         }
 
+        // Builds the display-ready summary for the match result screen.
         return new PostMatchSummaryView(
                 validatedResult.getSportId(),
                 validatedResult.getWeekNumber(),

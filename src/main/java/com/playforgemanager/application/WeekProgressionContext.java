@@ -14,14 +14,19 @@ public final class WeekProgressionContext {
     private final Map<Fixture, Match> preparedMatches;
 
     public WeekProgressionContext(int weekNumber, List<Fixture> scheduledFixtures) {
+        // Week progression must always happen for a valid season week.
         if (weekNumber < 1) {
             throw new IllegalArgumentException("Week number must be at least 1.");
         }
+
         this.weekNumber = weekNumber;
+
+        // Stores the scheduled fixtures as a safe unmodifiable list.
         this.scheduledFixtures = List.copyOf(Objects.requireNonNull(
                 scheduledFixtures,
                 "Scheduled fixtures cannot be null."
         ));
+
         this.preparedMatches = new LinkedHashMap<>();
     }
 
@@ -34,6 +39,7 @@ public final class WeekProgressionContext {
     }
 
     public void addPreparedMatch(Fixture fixture, Match match) {
+        // Connects a fixture to the match prepared for that fixture.
         preparedMatches.put(
                 Objects.requireNonNull(fixture, "Fixture cannot be null."),
                 Objects.requireNonNull(match, "Match cannot be null.")

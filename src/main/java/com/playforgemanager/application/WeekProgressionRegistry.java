@@ -12,31 +12,41 @@ public final class WeekProgressionRegistry {
         this.strategiesBySportId = new LinkedHashMap<>();
     }
 
+    // Registers one week progression strategy for a specific sport id.
     public WeekProgressionRegistry register(String sportId, WeekProgressionStrategy strategy) {
         String normalizedSportId = normalizeSportId(sportId);
+
         if (strategiesBySportId.containsKey(normalizedSportId)) {
             throw new IllegalArgumentException("A progression strategy is already registered for " + sportId + ".");
         }
+
         strategiesBySportId.put(
                 normalizedSportId,
                 Objects.requireNonNull(strategy, "Week progression strategy cannot be null.")
         );
+
         return this;
     }
 
+    // Finds the correct week progression strategy for the given sport id.
     public WeekProgressionStrategy getStrategy(String sportId) {
         WeekProgressionStrategy strategy = strategiesBySportId.get(normalizeSportId(sportId));
+
         if (strategy == null) {
             throw new IllegalArgumentException("No week progression strategy registered for " + sportId + ".");
         }
+
         return strategy;
     }
 
+    // Normalizes sport ids so registration and lookup use the same key format.
     private String normalizeSportId(String sportId) {
         String cleaned = Objects.requireNonNull(sportId, "Sport id cannot be null.").trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException("Sport id cannot be blank.");
         }
+
         return cleaned.toLowerCase(Locale.ROOT);
     }
 }

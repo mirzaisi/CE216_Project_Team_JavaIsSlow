@@ -9,6 +9,7 @@ public class Fixture {
     private Match playedMatch;
 
     public Fixture(int week, Team homeTeam, Team awayTeam) {
+        // Fixture weeks must start from 1.
         if (week < 1) {
             throw new IllegalArgumentException("Week must be at least 1.");
         }
@@ -16,6 +17,7 @@ public class Fixture {
         this.homeTeam = Objects.requireNonNull(homeTeam, "Home team cannot be null.");
         this.awayTeam = Objects.requireNonNull(awayTeam, "Away team cannot be null.");
 
+        // Prevents creating an invalid fixture where a team plays itself.
         if (homeTeam == awayTeam) {
             throw new IllegalArgumentException("A team cannot play against itself.");
         }
@@ -46,6 +48,7 @@ public class Fixture {
             throw new IllegalStateException("A played match is already attached to this fixture.");
         }
 
+        // The attached match must belong to the same home and away teams.
         if (match.getHomeTeam() != homeTeam || match.getAwayTeam() != awayTeam) {
             throw new IllegalArgumentException("Match teams must match fixture teams.");
         }

@@ -17,7 +17,11 @@ public class SaveGameService {
         this(new SaveGameDocumentMapper(), writer, Clock.systemUTC());
     }
 
-    public SaveGameService(SaveGameDocumentMapper documentMapper, SaveGameWriter writer, Clock clock) {
+    public SaveGameService(
+            SaveGameDocumentMapper documentMapper,
+            SaveGameWriter writer,
+            Clock clock
+    ) {
         this.documentMapper = Objects.requireNonNull(documentMapper, "Document mapper cannot be null.");
         this.writer = Objects.requireNonNull(writer, "Save writer cannot be null.");
         this.clock = Objects.requireNonNull(clock, "Clock cannot be null.");
@@ -26,10 +30,15 @@ public class SaveGameService {
     public SaveGameResult save(GameSession session, Path savePath) throws IOException {
         Objects.requireNonNull(savePath, "Save path cannot be null.");
 
+        // Converts the current game session into a saveable document.
         SaveGameDocument document = documentMapper.toDocument(session);
+
+        // Writes the save document to the selected file path.
         writer.write(document, savePath);
 
         SaveSessionData savedSession = document.session();
+
+        // Returns metadata about the completed save operation.
         return new SaveGameResult(
                 savePath.toAbsolutePath().normalize(),
                 document.formatId(),

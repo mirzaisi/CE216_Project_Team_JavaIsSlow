@@ -20,15 +20,20 @@ public class WeekProgressionService {
 
     public WeekProgressionResult advanceOneStep(GameSession session) {
         GameSession validatedSession = Objects.requireNonNull(session, "Game session cannot be null.");
+
         if (validatedSession.getCurrentSeason().isCompleted()) {
             throw new IllegalStateException("Current season is already completed.");
         }
 
         WeekProgressionStrategy strategy = progressionRegistry.getStrategy(validatedSession.getSelectedSportId());
         List<Team> leagueTeams = validatedSession.getCurrentSeason().getLeague().getTeams();
+
+        // Saves availability counts before progression so changes can be reported.
         List<Integer> availabilityBefore = snapshotAvailability(leagueTeams);
 
         WeekProgressionContext context = strategy.createContext(validatedSession);
+
+        // Runs the full week progression pipeline in order.
         strategy.applyTraining(validatedSession, context);
         strategy.updateAvailability(validatedSession, context);
         strategy.prepareMatches(validatedSession, context);
@@ -37,6 +42,7 @@ public class WeekProgressionService {
         strategy.processPostMatch(validatedSession, context);
         strategy.advanceWeek(validatedSession, context);
 
+        // Updates the session progression state after the week has advanced.
         if (validatedSession.getCurrentSeason().isCompleted()) {
             validatedSession.markCompleted();
         } else {
@@ -57,14 +63,19 @@ public class WeekProgressionService {
 
     private List<Integer> snapshotAvailability(List<Team> teams) {
         List<Integer> snapshot = new ArrayList<>(teams.size());
+
+        // Counts available players for each team before week progression.
         for (Team team : teams) {
             snapshot.add(countAvailablePlayers(team));
         }
+
         return List.copyOf(snapshot);
     }
 
     private List<TeamAvailabilityChange> buildAvailabilityChanges(List<Team> teams, List<Integer> availabilityBefore) {
         List<TeamAvailabilityChange> changes = new ArrayList<>(teams.size());
+
+        // Compares availability before and after week progression.
         for (int i = 0; i < teams.size(); i++) {
             changes.add(new TeamAvailabilityChange(
                     teams.get(i),
@@ -72,16 +83,19 @@ public class WeekProgressionService {
                     countAvailablePlayers(teams.get(i))
             ));
         }
+
         return List.copyOf(changes);
     }
 
     private int countAvailablePlayers(Team team) {
         int availablePlayers = 0;
+
         for (Player player : team.getRoster()) {
             if (player.isAvailable()) {
                 availablePlayers++;
             }
         }
+
         return availablePlayers;
     }
 }

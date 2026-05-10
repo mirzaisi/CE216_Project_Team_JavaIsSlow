@@ -12,31 +12,41 @@ public final class MatchProcessingRegistry {
         this.strategiesBySportId = new LinkedHashMap<>();
     }
 
+    // Registers one match processing strategy for a specific sport id.
     public MatchProcessingRegistry register(String sportId, MatchProcessingStrategy strategy) {
         String normalizedSportId = normalizeSportId(sportId);
+
         if (strategiesBySportId.containsKey(normalizedSportId)) {
             throw new IllegalArgumentException("A match processing strategy is already registered for " + sportId + ".");
         }
+
         strategiesBySportId.put(
                 normalizedSportId,
                 Objects.requireNonNull(strategy, "Match processing strategy cannot be null.")
         );
+
         return this;
     }
 
+    // Finds the correct match processing strategy for the given sport id.
     public MatchProcessingStrategy getStrategy(String sportId) {
         MatchProcessingStrategy strategy = strategiesBySportId.get(normalizeSportId(sportId));
+
         if (strategy == null) {
             throw new IllegalArgumentException("No match processing strategy registered for " + sportId + ".");
         }
+
         return strategy;
     }
 
+    // Normalizes sport ids so registration and lookup use the same key format.
     private String normalizeSportId(String sportId) {
         String cleaned = Objects.requireNonNull(sportId, "Sport id cannot be null.").trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException("Sport id cannot be blank.");
         }
+
         return cleaned.toLowerCase(Locale.ROOT);
     }
 }

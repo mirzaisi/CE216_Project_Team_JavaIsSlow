@@ -10,8 +10,11 @@ public final class SportRegistration {
     private final SportFactory sportFactory;
 
     public SportRegistration(String sportId, String displayName, SportFactory sportFactory) {
+        // Validates and stores the sport registration identity fields.
         this.sportId = validateText(sportId, "Sport id cannot be blank.");
         this.displayName = validateText(displayName, "Sport display name cannot be blank.");
+
+        // Every registration must be connected to a sport factory.
         this.sportFactory = Objects.requireNonNull(sportFactory, "Sport factory cannot be null.");
     }
 
@@ -29,9 +32,11 @@ public final class SportRegistration {
 
     private String validateText(String value, String message) {
         String cleaned = Objects.requireNonNull(value, message).trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
+
         return cleaned;
     }
 }

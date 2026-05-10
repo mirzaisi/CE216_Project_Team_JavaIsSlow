@@ -10,9 +10,11 @@ public final class TeamAvailabilityChange {
     private final int availablePlayersAfter;
 
     public TeamAvailabilityChange(Team team, int availablePlayersBefore, int availablePlayersAfter) {
+        // Availability counts cannot be stored as negative values.
         if (availablePlayersBefore < 0 || availablePlayersAfter < 0) {
             throw new IllegalArgumentException("Available player counts cannot be negative.");
         }
+
         this.team = Objects.requireNonNull(team, "Team cannot be null.");
         this.availablePlayersBefore = availablePlayersBefore;
         this.availablePlayersAfter = availablePlayersAfter;

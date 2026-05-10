@@ -16,22 +16,37 @@ public class StandingsQueryService {
     public StandingsView build(GameSession session) {
         GameSession validatedSession = Objects.requireNonNull(session, "Game session cannot be null.");
         Map<Team, MutableStandingStats> statsByTeam = new LinkedHashMap<>();
+
+        // Creates an empty standings stat row for every team in the league.
         for (Team team : validatedSession.getCurrentSeason().getLeague().getTeams()) {
             statsByTeam.put(team, new MutableStandingStats());
         }
 
+        // Applies only fixtures that have already been played.
         for (Fixture fixture : validatedSession.getCurrentSeason().getLeague().getFixtures()) {
             if (!fixture.isPlayed()) {
                 continue;
             }
 
             Match match = fixture.getPlayedMatch();
+
             if (match == null || !match.isPlayed()) {
                 continue;
             }
 
-            applyMatch(statsByTeam.get(match.getHomeTeam()), match.getHomeScore(), match.getAwayScore(), validatedSession);
-            applyMatch(statsByTeam.get(match.getAwayTeam()), match.getAwayScore(), match.getHomeScore(), validatedSession);
+            applyMatch(
+                    statsByTeam.get(match.getHomeTeam()),
+                    match.getHomeScore(),
+                    match.getAwayScore(),
+                    validatedSession
+            );
+
+            applyMatch(
+                    statsByTeam.get(match.getAwayTeam()),
+                    match.getAwayScore(),
+                    match.getHomeScore(),
+                    validatedSession
+            );
         }
 
         List<Team> rankedTeams = validatedSession.getActiveSport()
@@ -39,9 +54,12 @@ public class StandingsQueryService {
                 .rankTeams(validatedSession.getCurrentSeason().getLeague());
 
         List<StandingsRowView> rows = new ArrayList<>(rankedTeams.size());
+
+        // Converts ranked teams and calculated stats into display-ready rows.
         for (int i = 0; i < rankedTeams.size(); i++) {
             Team team = rankedTeams.get(i);
             MutableStandingStats stats = statsByTeam.get(team);
+
             rows.add(new StandingsRowView(
                     i + 1,
                     team.getName(),
@@ -74,17 +92,21 @@ public class StandingsQueryService {
         stats.scoresFor += scored;
         stats.scoresAgainst += conceded;
 
+        // Awards win points when the team scored more than it conceded.
         if (scored > conceded) {
             stats.wins++;
             stats.points += session.getActiveSport().getRuleset().getWinPoints();
             return;
         }
+
+        // Awards loss points when the team scored less than it conceded.
         if (scored < conceded) {
             stats.losses++;
             stats.points += session.getActiveSport().getRuleset().getLossPoints();
             return;
         }
 
+        // Awards draw points when both teams scored equally.
         stats.draws++;
         stats.points += session.getActiveSport().getRuleset().getDrawPoints();
     }

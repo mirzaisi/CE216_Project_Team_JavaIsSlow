@@ -9,8 +9,15 @@ public class FootballPlayer extends Player {
     private final FootballAttributeProfile attributeProfile;
     private FootballTrainingEffect weeklyTrainingEffect;
 
-    public FootballPlayer(String id, String name, FootballPosition position, FootballAttributeProfile attributeProfile) {
+    public FootballPlayer(
+            String id,
+            String name,
+            FootballPosition position,
+            FootballAttributeProfile attributeProfile
+    ) {
         super(id, name);
+
+        // Stores football-specific player data after validation.
         this.position = Objects.requireNonNull(position, "Football position cannot be null.");
         this.attributeProfile = Objects.requireNonNull(attributeProfile, "Attribute profile cannot be null.");
         this.weeklyTrainingEffect = FootballTrainingEffect.none();
@@ -40,6 +47,7 @@ public class FootballPlayer extends Player {
     }
 
     public FootballAttributeProfile getEffectiveAttributeProfile() {
+        // Combines base attributes with the current weekly training effect.
         return new FootballAttributeProfile(
                 clamp(attributeProfile.getAttack() + weeklyTrainingEffect.attackDelta()),
                 clamp(attributeProfile.getDefense() + weeklyTrainingEffect.defenseDelta()),

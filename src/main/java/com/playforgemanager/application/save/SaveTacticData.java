@@ -7,16 +7,22 @@ public record SaveTacticData(
         String name,
         List<SavePropertyValue> properties
 ) {
+
     public SaveTacticData {
-        name = requireText(name, "Tactic name cannot be blank.");
+        // Validates and cleans the tactic name before saving.
+        name = requireText(name);
+
+        // Stores tactic properties as a safe unmodifiable list.
         properties = List.copyOf(Objects.requireNonNull(properties, "Tactic properties cannot be null."));
     }
 
-    private static String requireText(String value, String message) {
-        String cleaned = Objects.requireNonNull(value, message).trim();
+    private static String requireText(String value) {
+        String cleaned = Objects.requireNonNull(value, "Tactic name cannot be blank.").trim();
+
         if (cleaned.isEmpty()) {
-            throw new IllegalArgumentException(message);
+            throw new IllegalArgumentException("Tactic name cannot be blank.");
         }
+
         return cleaned;
     }
 }

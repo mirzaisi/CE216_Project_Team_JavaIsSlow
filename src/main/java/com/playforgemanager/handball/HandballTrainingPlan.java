@@ -21,7 +21,8 @@ public final class HandballTrainingPlan implements TrainingPlan {
             int tacticalLoad,
             boolean recoveryIncluded
     ) {
-        this.focus = validateText(focus, "Training focus cannot be blank.");
+        // Stores the training plan after validating all load values.
+        this.focus = validateText(focus);
         this.intensity = validateLoad("Intensity", intensity);
         this.conditioningLoad = validateLoad("Conditioning load", conditioningLoad);
         this.tacticalLoad = validateLoad("Tactical load", tacticalLoad);
@@ -50,18 +51,24 @@ public final class HandballTrainingPlan implements TrainingPlan {
         return recoveryIncluded;
     }
 
-    private String validateText(String value, String message) {
-        String cleaned = Objects.requireNonNull(value, message).trim();
+    private String validateText(String value) {
+        String cleaned = Objects.requireNonNull(value, "Training focus cannot be blank.").trim();
+
         if (cleaned.isEmpty()) {
-            throw new IllegalArgumentException(message);
+            throw new IllegalArgumentException("Training focus cannot be blank.");
         }
+
         return cleaned;
     }
 
     private int validateLoad(String name, int value) {
+        // Training load values must stay inside the shared 0-100 range.
         if (value < MIN_INTENSITY || value > MAX_INTENSITY) {
-            throw new IllegalArgumentException(name + " must be between " + MIN_INTENSITY + " and " + MAX_INTENSITY + ".");
+            throw new IllegalArgumentException(
+                    name + " must be between " + MIN_INTENSITY + " and " + MAX_INTENSITY + "."
+            );
         }
+
         return value;
     }
 }

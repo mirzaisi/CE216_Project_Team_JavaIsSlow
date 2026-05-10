@@ -11,6 +11,7 @@ public class SquadQueryService {
         GameSession validatedSession = Objects.requireNonNull(session, "Game session cannot be null.");
         Team controlledTeam = validatedSession.getControlledTeam();
 
+        // Builds a squad overview for the currently controlled team.
         return new SquadView(
                 controlledTeam.getName(),
                 controlledTeam.getRoster().size(),

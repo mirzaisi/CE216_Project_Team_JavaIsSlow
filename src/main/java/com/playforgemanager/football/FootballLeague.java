@@ -14,31 +14,23 @@ public class FootballLeague extends League {
 
     public void addFixtures(List<Fixture> fixtures) {
         Objects.requireNonNull(fixtures, "Fixtures cannot be null.");
-        fixtures.forEach(this::addFixture);
-    }
 
-    public List<Fixture> getFixturesForWeek(int week) {
-        if (week < 1) {
-            throw new IllegalArgumentException("Week must be at least 1.");
+        // Adds each generated fixture to the league one by one.
+        for (Fixture fixture : fixtures) {
+            addFixture(fixture);
         }
-
-        return getFixtures().stream()
-                .filter(fixture -> fixture.getWeek() == week)
-                .toList();
-    }
-
-    public boolean hasFixturesForWeek(int week) {
-        if (week < 1) {
-            throw new IllegalArgumentException("Week must be at least 1.");
-        }
-
-        return getFixtures().stream().anyMatch(fixture -> fixture.getWeek() == week);
     }
 
     public int getLastScheduledWeek() {
-        return getFixtures().stream()
-                .mapToInt(Fixture::getWeek)
-                .max()
-                .orElse(0);
+        int lastScheduledWeek = 0;
+
+        // Finds the highest week number among all scheduled fixtures.
+        for (Fixture fixture : getFixtures()) {
+            if (fixture.getWeek() > lastScheduledWeek) {
+                lastScheduledWeek = fixture.getWeek();
+            }
+        }
+
+        return lastScheduledWeek;
     }
 }

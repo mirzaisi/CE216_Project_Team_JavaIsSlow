@@ -35,12 +35,16 @@ public final class MatchProcessingResult {
             List<TeamAvailabilityChange> availabilityChanges,
             ProgressionState progressionState
     ) {
+        // The processed match must belong to a valid season week.
         if (weekNumber < 1) {
             throw new IllegalArgumentException("Week number must be at least 1.");
         }
+
+        // Match scores cannot be stored as negative values.
         if (controlledTeamScore < 0 || opponentScore < 0) {
             throw new IllegalArgumentException("Scores cannot be negative.");
         }
+
         this.sportId = validateText(sportId, "Sport id cannot be blank.");
         this.weekNumber = weekNumber;
         this.fixture = Objects.requireNonNull(fixture, "Fixture cannot be null.");
@@ -49,18 +53,25 @@ public final class MatchProcessingResult {
         this.controlledTeamHome = controlledTeamHome;
         this.controlledTeamScore = controlledTeamScore;
         this.opponentScore = opponentScore;
+
+        // Stores the updated league ranking as a safe unmodifiable list.
         this.rankedTeamsAfterMatch = List.copyOf(Objects.requireNonNull(
                 rankedTeamsAfterMatch,
                 "Ranked teams cannot be null."
         ));
+
         if (controlledTeamRankAfterMatch < 1) {
             throw new IllegalArgumentException("Controlled team rank must be at least 1.");
         }
+
         this.controlledTeamRankAfterMatch = controlledTeamRankAfterMatch;
+
+        // Stores player availability changes caused by the match.
         this.availabilityChanges = List.copyOf(Objects.requireNonNull(
                 availabilityChanges,
                 "Availability changes cannot be null."
         ));
+
         this.progressionState = Objects.requireNonNull(progressionState, "Progression state cannot be null.");
     }
 
@@ -114,9 +125,11 @@ public final class MatchProcessingResult {
 
     private String validateText(String value, String message) {
         String cleaned = Objects.requireNonNull(value, message).trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
+
         return cleaned;
     }
 }

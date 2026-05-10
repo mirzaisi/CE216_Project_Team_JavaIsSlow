@@ -38,15 +38,13 @@ public class FootballSportFactory implements SportFactory {
     private final AssetProvider assetProvider;
     private final int initialTeamCount;
 
-    public FootballSportFactory(AssetProvider assetProvider) {
-        this(assetProvider, 4);
-    }
-
     public FootballSportFactory(AssetProvider assetProvider, int initialTeamCount) {
         this.assetProvider = Objects.requireNonNull(assetProvider, "Asset provider cannot be null.");
+
         if (initialTeamCount < 2) {
             throw new IllegalArgumentException("Initial team count must be at least 2.");
         }
+
         this.initialTeamCount = initialTeamCount;
     }
 
@@ -62,19 +60,29 @@ public class FootballSportFactory implements SportFactory {
 
     @Override
     public League createLeague(String leagueName) {
-        FootballLeague league = new FootballLeague(Objects.requireNonNull(leagueName, "League name cannot be null."));
-        List<String> teamNames = collectNormalizedValues(assetProvider.getTeamNames(), "Asset provider must supply team names.");
+        FootballLeague league = new FootballLeague(
+                Objects.requireNonNull(leagueName, "League name cannot be null.")
+        );
+
+        List<String> teamNames = collectNormalizedValues(
+                assetProvider.getTeamNames(),
+                "Asset provider must supply team names."
+        );
+
         if (teamNames.size() < initialTeamCount) {
             throw new IllegalStateException("Asset provider does not supply enough team names.");
         }
 
         FootballRuleset ruleset = new FootballRuleset();
 
+        // Creates the initial football teams with players, coach, tactic, and lineup.
         for (int i = 0; i < initialTeamCount; i++) {
             FootballTeam team = new FootballTeam("football-team-" + (i + 1), teamNames.get(i));
+
             populatePlayers(team, i);
             populateCoach(team, i);
             configureMatchPreparation(team, i, ruleset);
+
             league.addTeam(team);
         }
 
@@ -88,30 +96,36 @@ public class FootballSportFactory implements SportFactory {
 
     private void populatePlayers(FootballTeam team, int teamIndex) {
         List<String> names = collectPeopleNames();
+
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply player names.");
         }
 
+        // Builds the default football squad using the fixed position pattern.
         for (int i = 0; i < DEFAULT_SQUAD_SIZE; i++) {
             FootballPosition position = DEFAULT_POSITION_PATTERN[i];
             String baseName = names.get((teamIndex * DEFAULT_SQUAD_SIZE + i) % names.size());
+
             FootballPlayer player = new FootballPlayer(
                     "football-player-" + (teamIndex + 1) + "-" + (i + 1),
                     baseName + " " + (i + 1),
                     position,
                     createAttributeProfile(position, teamIndex, i)
             );
+
             team.addPlayer(player);
         }
     }
 
     private void populateCoach(FootballTeam team, int teamIndex) {
         List<String> names = collectPeopleNames();
+
         if (names.isEmpty()) {
             throw new IllegalStateException("Asset provider must supply coach names.");
         }
 
         String coachName = names.get(teamIndex % names.size()) + " Coach";
+
         FootballCoach coach = new FootballCoach(
                 "football-coach-" + (teamIndex + 1),
                 coachName,
@@ -119,10 +133,12 @@ public class FootballSportFactory implements SportFactory {
                 chooseCoachSpecialization(teamIndex),
                 70 + (teamIndex % 21)
         );
+
         team.addCoach(coach);
     }
 
     private void configureMatchPreparation(FootballTeam team, int teamIndex, FootballRuleset ruleset) {
+        // Assigns the default tactic, training plan, and valid starting lineup.
         team.assignTactic(createDefaultTactic(teamIndex));
         team.assignTrainingPlan(new FootballTrainingPlan("Balanced Development", 60, 58, 52, true));
         team.assignLineup(ruleset.buildLineup(team.getFootballPlayers()), ruleset);
@@ -161,9 +177,14 @@ public class FootballSportFactory implements SportFactory {
         };
     }
 
-    private FootballAttributeProfile createAttributeProfile(FootballPosition position, int teamIndex, int playerIndex) {
+    private FootballAttributeProfile createAttributeProfile(
+            FootballPosition position,
+            int teamIndex,
+            int playerIndex
+    ) {
         int variance = (teamIndex * 7 + playerIndex * 3) % 11;
 
+        // Creates position-based attributes with a small deterministic variance.
         return switch (position) {
             case GOALKEEPER -> new FootballAttributeProfile(
                     clamp(38 + variance),
@@ -198,17 +219,23 @@ public class FootballSportFactory implements SportFactory {
 
     private List<String> collectPeopleNames() {
         List<String> names = new ArrayList<>();
+
+        // Combines all available person names for players and coaches.
         names.addAll(collectNormalizedValues(assetProvider.getMaleNames(), null));
         names.addAll(collectNormalizedValues(assetProvider.getFemaleNames(), null));
+
         return names;
     }
 
     private List<String> collectNormalizedValues(List<?> source, String emptyMessage) {
         List<String> values = new ArrayList<>();
+
+        // Converts non-blank asset values into clean strings.
         if (source != null) {
             for (Object entry : source) {
                 if (entry != null) {
                     String value = entry.toString().trim();
+
                     if (!value.isEmpty()) {
                         values.add(value);
                     }

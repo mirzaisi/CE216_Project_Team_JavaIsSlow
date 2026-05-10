@@ -19,7 +19,12 @@ public class HandballCoach extends Coach {
             int coachingRating
     ) {
         super(id, name, role);
-        this.specialization = Objects.requireNonNull(specialization, "Coach specialization cannot be null.");
+
+        // Stores handball-specific coach details after validation.
+        this.specialization = Objects.requireNonNull(
+                specialization,
+                "Coach specialization cannot be null."
+        );
         this.coachingRating = validateRating(coachingRating);
     }
 
@@ -36,9 +41,13 @@ public class HandballCoach extends Coach {
     }
 
     private int validateRating(int rating) {
+        // Coaching rating must stay inside the shared 0-100 rating range.
         if (rating < MIN_RATING || rating > MAX_RATING) {
-            throw new IllegalArgumentException("Coaching rating must be between " + MIN_RATING + " and " + MAX_RATING + ".");
+            throw new IllegalArgumentException(
+                    "Coaching rating must be between " + MIN_RATING + " and " + MAX_RATING + "."
+            );
         }
+
         return rating;
     }
 }

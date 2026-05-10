@@ -69,8 +69,10 @@ public class SaveGameDocumentMapper {
 
     public SaveGameDocument toDocument(GameSession session) {
         Objects.requireNonNull(session, "Game session cannot be null.");
+
         validateSession(session);
 
+        // Builds the root save document using the current save format.
         return new SaveGameDocument(
                 SaveGameFormat.FORMAT_ID,
                 SaveGameFormat.CURRENT_VERSION,
@@ -92,24 +94,30 @@ public class SaveGameDocumentMapper {
         if (teams.isEmpty()) {
             throw new IllegalStateException("Cannot save a session without league teams.");
         }
+
         if (!teams.contains(session.getControlledTeam())) {
             throw new IllegalStateException("Controlled team must belong to the current league.");
         }
 
+        // Team ids must be unique before the session can be saved safely.
         Set<String> teamIds = new HashSet<>();
+
         for (Team team : teams) {
             if (!teamIds.add(team.getId())) {
                 throw new IllegalStateException("Duplicate team id in league: " + team.getId());
             }
+
             validateRoster(team);
         }
 
+        // Every scheduled fixture must reference teams from this league.
         for (Fixture fixture : league.getFixtures()) {
             if (!teams.contains(fixture.getHomeTeam()) || !teams.contains(fixture.getAwayTeam())) {
                 throw new IllegalStateException("Fixture teams must belong to the current league.");
             }
 
             Match playedMatch = fixture.getPlayedMatch();
+
             if (playedMatch != null) {
                 validatePlayedMatch(fixture, playedMatch);
             }
@@ -117,7 +125,9 @@ public class SaveGameDocumentMapper {
     }
 
     private void validateRoster(Team team) {
+        // Player ids must be unique inside each team roster.
         Set<String> playerIds = new HashSet<>();
+
         for (Player player : team.getRoster()) {
             if (!playerIds.add(player.getId())) {
                 throw new IllegalStateException(
@@ -131,12 +141,15 @@ public class SaveGameDocumentMapper {
         if (match.getHomeTeam() != fixture.getHomeTeam() || match.getAwayTeam() != fixture.getAwayTeam()) {
             throw new IllegalStateException("Played match teams must match their fixture.");
         }
+
         if (!match.isPlayed()) {
             throw new IllegalStateException("Attached match must be marked as played.");
         }
+
         if (match.getHomeLineup() == null || match.getAwayLineup() == null) {
             throw new IllegalStateException("Played matches must include both lineups before saving.");
         }
+
         if (match.getHomeTactic() == null || match.getAwayTactic() == null) {
             throw new IllegalStateException("Played matches must include both tactics before saving.");
         }
@@ -144,21 +157,40 @@ public class SaveGameDocumentMapper {
 
     private SaveSeasonData toSeasonData(Season season) {
         League league = season.getLeague();
+
+        List<SaveTeamData> teams = new ArrayList<>();
+
+        for (Team team : league.getTeams()) {
+            teams.add(toTeamData(team));
+        }
+
+        List<SaveFixtureData> fixtures = new ArrayList<>();
+
+        for (Fixture fixture : league.getFixtures()) {
+            fixtures.add(toFixtureData(fixture));
+        }
+
         return new SaveSeasonData(
                 league.getName(),
                 season.getCurrentWeek(),
                 season.isCompleted(),
-                league.getTeams().stream().map(this::toTeamData).toList(),
-                league.getFixtures().stream().map(this::toFixtureData).toList()
+                List.copyOf(teams),
+                List.copyOf(fixtures)
         );
     }
 
     private SaveTeamData toTeamData(Team team) {
+        List<SavePlayerData> players = new ArrayList<>();
+
+        for (Player player : team.getRoster()) {
+            players.add(toPlayerData(player));
+        }
+
         return new SaveTeamData(
                 team.getId(),
                 team.getName(),
                 extractCoaches(team),
-                team.getRoster().stream().map(this::toPlayerData).toList(),
+                List.copyOf(players),
                 toLineupDataOrNull(team.getSelectedLineup()),
                 toTacticDataOrNull(team.getSelectedTactic()),
                 toTrainingPlanDataOrNull(team.getTrainingPlan()),
@@ -216,16 +248,27 @@ public class SaveGameDocumentMapper {
     private SaveLineupData toLineupData(Lineup lineup) {
         Objects.requireNonNull(lineup, "Lineup cannot be null.");
 
-        List<String> selectedPlayerIds = lineup.getSelectedPlayers().stream()
-                .map(Player::getId)
-                .toList();
+        List<String> selectedPlayerIds = new ArrayList<>();
 
-        List<String> reservePlayerIds = reservePlayers(lineup).stream()
-                .map(Player::getId)
-                .filter(playerId -> !selectedPlayerIds.contains(playerId))
-                .toList();
+        for (Player player : lineup.getSelectedPlayers()) {
+            selectedPlayerIds.add(player.getId());
+        }
 
-        return new SaveLineupData(selectedPlayerIds, reservePlayerIds);
+        List<String> reservePlayerIds = new ArrayList<>();
+
+        // Reserve ids are saved only if they are not already selected players.
+        for (Player player : reservePlayers(lineup)) {
+            String playerId = player.getId();
+
+            if (!selectedPlayerIds.contains(playerId)) {
+                reservePlayerIds.add(playerId);
+            }
+        }
+
+        return new SaveLineupData(
+                List.copyOf(selectedPlayerIds),
+                List.copyOf(reservePlayerIds)
+        );
     }
 
     private SaveTacticData toTacticDataOrNull(Tactic tactic) {
@@ -234,6 +277,7 @@ public class SaveGameDocumentMapper {
 
     private SaveTacticData toTacticData(Tactic tactic) {
         Objects.requireNonNull(tactic, "Tactic cannot be null.");
+
         return new SaveTacticData(
                 tactic.getName(),
                 extractProperties(tactic, TACTIC_EXCLUDED_PROPERTIES)
@@ -256,16 +300,19 @@ public class SaveGameDocumentMapper {
         try {
             Method method = team.getClass().getMethod("getCoaches");
             Object value = method.invoke(team);
+
             if (!(value instanceof List<?> coaches)) {
                 return List.of();
             }
 
             List<SaveCoachData> savedCoaches = new ArrayList<>();
+
             for (Object coach : coaches) {
                 if (coach instanceof Coach typedCoach) {
                     savedCoaches.add(toCoachData(typedCoach));
                 }
             }
+
             return List.copyOf(savedCoaches);
         } catch (NoSuchMethodException exception) {
             return List.of();
@@ -275,17 +322,21 @@ public class SaveGameDocumentMapper {
     }
 
     private List<Player> reservePlayers(Lineup lineup) {
+        // Tries common method names for bench/reserve players.
         for (String methodName : BENCH_METHOD_CANDIDATES) {
             try {
                 Method method = lineup.getClass().getMethod(methodName);
                 Object value = method.invoke(lineup);
+
                 if (value instanceof List<?> players) {
                     List<Player> result = new ArrayList<>();
+
                     for (Object player : players) {
                         if (player instanceof Player typedPlayer) {
                             result.add(typedPlayer);
                         }
                     }
+
                     return List.copyOf(result);
                 }
             } catch (NoSuchMethodException ignored) {
@@ -293,15 +344,17 @@ public class SaveGameDocumentMapper {
                 throw new IllegalStateException("Could not read reserve players from lineup.", exception);
             }
         }
+
         return List.of();
     }
 
     private List<SavePropertyValue> extractProperties(Object source, Set<String> excludedProperties) {
         List<SavePropertyValue> values = new ArrayList<>();
+
         collectProperties(source, "", excludedProperties, values, newIdentitySet(), 0);
-        return values.stream()
-                .sorted(Comparator.comparing(SavePropertyValue::key))
-                .toList();
+        values.sort(Comparator.comparing(SavePropertyValue::key));
+
+        return List.copyOf(values);
     }
 
     private void collectProperties(
@@ -327,16 +380,19 @@ public class SaveGameDocumentMapper {
             }
 
             String propertyName = propertyName(method);
+
             if (propertyName == null) {
                 continue;
             }
 
             String key = prefix.isEmpty() ? propertyName : prefix + "." + propertyName;
+
             if (excludedProperties.contains(propertyName) || excludedProperties.contains(key)) {
                 continue;
             }
 
             Object rawValue = invokeProperty(source, method);
+
             collectPropertyValue(key, rawValue, excludedProperties, values, visited, depth);
         }
     }
@@ -352,11 +408,13 @@ public class SaveGameDocumentMapper {
         for (RecordComponent component : source.getClass().getRecordComponents()) {
             String propertyName = component.getName();
             String key = prefix.isEmpty() ? propertyName : prefix + "." + propertyName;
+
             if (excludedProperties.contains(propertyName) || excludedProperties.contains(key)) {
                 continue;
             }
 
             Object rawValue = readRecordComponent(source, component);
+
             collectPropertyValue(key, rawValue, excludedProperties, values, visited, depth);
         }
     }
@@ -374,11 +432,13 @@ public class SaveGameDocumentMapper {
         }
 
         SavePropertyValue propertyValue = toPropertyValue(key, rawValue);
+
         if (propertyValue != null) {
             values.add(propertyValue);
             return;
         }
 
+        // Non-JDK objects are explored one level deeper as nested save properties.
         if (!isJdkType(rawValue.getClass())) {
             collectProperties(rawValue, key, excludedProperties, values, visited, depth + 1);
         }
@@ -393,14 +453,17 @@ public class SaveGameDocumentMapper {
 
     private String propertyName(Method method) {
         String name = method.getName();
+
         if (name.startsWith("get") && name.length() > 3 && method.getReturnType() != Void.TYPE) {
             return decapitalize(name.substring(3));
         }
+
         if (name.startsWith("is")
                 && name.length() > 2
                 && (method.getReturnType() == boolean.class || method.getReturnType() == Boolean.class)) {
             return decapitalize(name.substring(2));
         }
+
         return null;
     }
 
@@ -424,18 +487,23 @@ public class SaveGameDocumentMapper {
         if (value instanceof String text) {
             return new SavePropertyValue(key, "string", text);
         }
+
         if (value instanceof Enum<?> enumValue) {
             return new SavePropertyValue(key, "string", enumValue.name());
         }
+
         if (value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte) {
             return new SavePropertyValue(key, "integer", String.valueOf(value));
         }
+
         if (value instanceof Float || value instanceof Double) {
             return new SavePropertyValue(key, "decimal", String.format(Locale.ROOT, "%s", value));
         }
+
         if (value instanceof Boolean) {
             return new SavePropertyValue(key, "boolean", String.valueOf(value));
         }
+
         return null;
     }
 
@@ -447,6 +515,7 @@ public class SaveGameDocumentMapper {
         if (text.length() == 1) {
             return text.toLowerCase(Locale.ROOT);
         }
+
         return text.substring(0, 1).toLowerCase(Locale.ROOT) + text.substring(1);
     }
 

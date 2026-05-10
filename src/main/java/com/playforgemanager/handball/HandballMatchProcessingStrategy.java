@@ -15,14 +15,17 @@ public class HandballMatchProcessingStrategy implements MatchProcessingStrategy 
     public Match processMatch(GameSession session, Fixture fixture) {
         HandballSeason season = requireSeason(session);
         Fixture validatedFixture = Objects.requireNonNull(fixture, "Fixture cannot be null.");
+
         if (validatedFixture.isPlayed()) {
             throw new IllegalStateException("Fixture is already played.");
         }
 
         Sport sport = session.getActiveSport();
         League league = session.getCurrentSeason().getLeague();
+
         Match match = new HandballMatch(validatedFixture.getHomeTeam(), validatedFixture.getAwayTeam());
 
+        // Prepares, simulates, records, and finalizes the handball match.
         season.prepareMatch(match, sport);
         sport.getMatchEngine().simulate(match, sport.getRuleset());
         validatedFixture.attachPlayedMatch(match);
@@ -35,9 +38,11 @@ public class HandballMatchProcessingStrategy implements MatchProcessingStrategy 
 
     private HandballSeason requireSeason(GameSession session) {
         Objects.requireNonNull(session, "Game session cannot be null.");
+
         if (!(session.getCurrentSeason() instanceof HandballSeason handballSeason)) {
             throw new IllegalArgumentException("Handball match processing requires HandballSeason.");
         }
+
         return handballSeason;
     }
 }

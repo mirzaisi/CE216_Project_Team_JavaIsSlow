@@ -27,16 +27,22 @@ public final class WeekProgressionResult {
             List<Team> rankedTeams,
             List<TeamAvailabilityChange> availabilityChanges
     ) {
+        // Both week values must point to valid season weeks.
         if (playedWeek < 1 || currentWeekAfterProgression < 1) {
             throw new IllegalArgumentException("Week numbers must be at least 1.");
         }
+
         this.sportId = validateSportId(sportId);
         this.playedWeek = playedWeek;
         this.currentWeekAfterProgression = currentWeekAfterProgression;
         this.seasonCompleted = seasonCompleted;
         this.progressionState = Objects.requireNonNull(progressionState, "Progression state cannot be null.");
+
+        // Stores played fixtures and rankings as safe unmodifiable lists.
         this.playedFixtures = List.copyOf(Objects.requireNonNull(playedFixtures, "Played fixtures cannot be null."));
         this.rankedTeams = List.copyOf(Objects.requireNonNull(rankedTeams, "Ranked teams cannot be null."));
+
+        // Stores availability changes caused by week progression.
         this.availabilityChanges = List.copyOf(
                 Objects.requireNonNull(availabilityChanges, "Availability changes cannot be null.")
         );
@@ -76,9 +82,11 @@ public final class WeekProgressionResult {
 
     private String validateSportId(String sportId) {
         String cleaned = Objects.requireNonNull(sportId, "Sport id cannot be null.").trim();
+
         if (cleaned.isEmpty()) {
             throw new IllegalArgumentException("Sport id cannot be blank.");
         }
+
         return cleaned;
     }
 }

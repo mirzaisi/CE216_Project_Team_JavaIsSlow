@@ -15,6 +15,7 @@ public class HandballSport implements Sport {
     private final InjuryPolicy injuryPolicy;
 
     public HandballSport() {
+        // Builds the complete handball rules and simulation components.
         this.ruleset = new HandballRuleset();
         this.scheduler = new RoundRobinHandballScheduler();
         this.standingsPolicy = new HandballStandingsPolicy(ruleset);
@@ -29,10 +30,6 @@ public class HandballSport implements Sport {
 
     @Override
     public Ruleset getRuleset() {
-        return ruleset;
-    }
-
-    public HandballRuleset getHandballRuleset() {
         return ruleset;
     }
 

@@ -32,27 +32,33 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
     @Override
     public List<LineupSlotView> describeLineup(GameSession session) {
         HandballLineup lineup = currentHandballLineup(session);
+
         if (lineup == null) {
             return List.of();
         }
+
         return toSlotViews(lineup.getStartingPlayers(), 0);
     }
 
     @Override
     public List<LineupSlotView> describeBench(GameSession session) {
         HandballLineup lineup = currentHandballLineup(session);
+
         if (lineup == null) {
             return List.of();
         }
+
         return toSlotViews(lineup.getBenchPlayers(), lineup.getStartingPlayers().size());
     }
 
     @Override
     public String validateLineup(GameSession session) {
         HandballLineup lineup = currentHandballLineup(session);
+
         if (lineup == null) {
             return "No lineup selected.";
         }
+
         try {
             ruleset.validateLineupOrThrow(lineup);
             return null;
@@ -65,6 +71,7 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
     public void autoPickLineup(GameSession session) {
         HandballTeam team = controlledTeam(session);
         HandballLineup lineup = ruleset.buildLineup(team.getHandballPlayers());
+
         team.assignLineup(lineup, ruleset);
     }
 
@@ -72,8 +79,11 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
     public List<TacticOptionView> tacticOptions(GameSession session) {
         String currentId = currentTacticId(session);
         List<TacticOptionView> options = new ArrayList<>(tacticPresets.size());
+
+        // Builds tactic option views and marks the currently selected preset.
         for (Map.Entry<String, HandballTactic> entry : tacticPresets.entrySet()) {
             HandballTactic tactic = entry.getValue();
+
             options.add(new TacticOptionView(
                     entry.getKey(),
                     tactic.getName(),
@@ -81,29 +91,37 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
                     entry.getKey().equals(currentId)
             ));
         }
+
         return List.copyOf(options);
     }
 
     @Override
     public String currentTacticId(GameSession session) {
         HandballTactic current = currentHandballTactic(session);
+
         if (current == null) {
             return null;
         }
+
         for (Map.Entry<String, HandballTactic> entry : tacticPresets.entrySet()) {
             if (matchesPreset(entry.getValue(), current)) {
                 return entry.getKey();
             }
         }
+
         return null;
     }
 
     @Override
     public void applyTactic(GameSession session, String tacticId) {
-        HandballTactic tactic = tacticPresets.get(Objects.requireNonNull(tacticId, "Tactic id cannot be null."));
+        HandballTactic tactic = tacticPresets.get(
+                Objects.requireNonNull(tacticId, "Tactic id cannot be null.")
+        );
+
         if (tactic == null) {
             throw new IllegalArgumentException("Unknown handball tactic id: " + tacticId);
         }
+
         controlledTeam(session).assignTactic(tactic);
     }
 
@@ -119,9 +137,11 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
 
     private HandballTeam controlledTeam(GameSession session) {
         Team team = Objects.requireNonNull(session, "Game session cannot be null.").getControlledTeam();
+
         if (!(team instanceof HandballTeam handballTeam)) {
             throw new IllegalStateException("Handball setup adapter requires a HandballTeam.");
         }
+
         return handballTeam;
     }
 
@@ -135,8 +155,11 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
 
     private List<LineupSlotView> toSlotViews(List<HandballPlayer> players, int startIndex) {
         List<LineupSlotView> slots = new ArrayList<>(players.size());
+
+        // Converts handball players into UI-friendly lineup slot data.
         for (int i = 0; i < players.size(); i++) {
             HandballPlayer player = players.get(i);
+
             slots.add(new LineupSlotView(
                     startIndex + i,
                     player.getPosition().name(),
@@ -145,6 +168,7 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
                     player.isAvailable()
             ));
         }
+
         return List.copyOf(slots);
     }
 
@@ -158,6 +182,7 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
 
     private Map<String, HandballTactic> buildTacticPresets() {
         Map<String, HandballTactic> presets = new LinkedHashMap<>();
+
         presets.put(
                 "balanced-33",
                 new HandballTactic("Balanced Build-Up", "3-3", HandballTactic.Tempo.BALANCED, 58, 60)
@@ -174,15 +199,18 @@ public class HandballTeamSetupAdapter implements TeamSetupAdapter {
                 "pressure-51",
                 new HandballTactic("Balanced Pressure", "5-1", HandballTactic.Tempo.BALANCED, 72, 56)
         );
+
         return presets;
     }
 
     private Map<String, String> buildTacticDescriptions() {
         Map<String, String> descriptions = new LinkedHashMap<>();
+
         descriptions.put("balanced-33", "Standard 3-3 build-up. Even tempo and pressure.");
         descriptions.put("fast-break-33", "Push the tempo and exploit transitions on every turnover.");
         descriptions.put("compact-60", "Six-zero defense, slow tempo, frustrate the opponent.");
         descriptions.put("pressure-51", "Aggressive 5-1 with high pressure on the playmaker.");
+
         return descriptions;
     }
 }

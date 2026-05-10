@@ -26,11 +26,22 @@ public class TeamOverviewQueryService {
         Team controlledTeam = validatedSession.getControlledTeam();
         List<StandingsRowView> standingsRows = standingsQueryService.build(validatedSession).rows();
 
-        Fixture nextFixture = validatedSession.getCurrentSeason().getLeague().getFixtures().stream()
-                .filter(fixture -> !fixture.isPlayed())
-                .filter(fixture -> fixture.getHomeTeam() == controlledTeam || fixture.getAwayTeam() == controlledTeam)
-                .min(java.util.Comparator.comparingInt(Fixture::getWeek))
-                .orElse(null);
+        Fixture nextFixture = null;
+
+        // Finds the next unplayed fixture involving the controlled team.
+        for (Fixture fixture : validatedSession.getCurrentSeason().getLeague().getFixtures()) {
+            if (fixture.isPlayed()) {
+                continue;
+            }
+
+            if (fixture.getHomeTeam() != controlledTeam && fixture.getAwayTeam() != controlledTeam) {
+                continue;
+            }
+
+            if (nextFixture == null || fixture.getWeek() < nextFixture.getWeek()) {
+                nextFixture = fixture;
+            }
+        }
 
         Integer selectedLineupSize = controlledTeam.getSelectedLineup() == null
                 ? null
@@ -44,12 +55,17 @@ public class TeamOverviewQueryService {
                 ? null
                 : controlledTeam.getTrainingPlan().getFocus();
 
-        int currentRank = standingsRows.stream()
-                .filter(row -> row.teamName().equals(controlledTeam.getName()))
-                .mapToInt(StandingsRowView::rank)
-                .findFirst()
-                .orElse(standingsRows.size());
+        int currentRank = standingsRows.size();
 
+        // Finds the controlled team's current rank from the standings rows.
+        for (StandingsRowView row : standingsRows) {
+            if (row.teamName().equals(controlledTeam.getName())) {
+                currentRank = row.rank();
+                break;
+            }
+        }
+
+        // Builds the display-ready overview for the controlled team.
         return new TeamOverviewView(
                 validatedSession.getSelectedSportId(),
                 validatedSession.getActiveSport().getName(),

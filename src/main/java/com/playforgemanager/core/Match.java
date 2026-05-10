@@ -5,12 +5,10 @@ import java.util.Objects;
 public abstract class Match {
     private final Team homeTeam;
     private final Team awayTeam;
-
     private Lineup homeLineup;
     private Lineup awayLineup;
     private Tactic homeTactic;
     private Tactic awayTactic;
-
     private boolean played;
     private int homeScore;
     private int awayScore;
@@ -19,6 +17,7 @@ public abstract class Match {
         this.homeTeam = Objects.requireNonNull(homeTeam, "Home team cannot be null.");
         this.awayTeam = Objects.requireNonNull(awayTeam, "Away team cannot be null.");
 
+        // A valid match must always have two different teams.
         if (homeTeam == awayTeam) {
             throw new IllegalArgumentException("Home and away teams must be different.");
         }
@@ -65,11 +64,13 @@ public abstract class Match {
     }
 
     public void setHomeSetup(Lineup lineup, Tactic tactic) {
+        // Stores the home team's lineup and tactic for this match.
         this.homeLineup = Objects.requireNonNull(lineup, "Home lineup cannot be null.");
         this.homeTactic = Objects.requireNonNull(tactic, "Home tactic cannot be null.");
     }
 
     public void setAwaySetup(Lineup lineup, Tactic tactic) {
+        // Stores the away team's lineup and tactic for this match.
         this.awayLineup = Objects.requireNonNull(lineup, "Away lineup cannot be null.");
         this.awayTactic = Objects.requireNonNull(tactic, "Away tactic cannot be null.");
     }
@@ -78,6 +79,8 @@ public abstract class Match {
         if (played) {
             throw new IllegalStateException("Match result is already set.");
         }
+
+        // Match scores cannot be stored as negative values.
         if (homeScore < 0 || awayScore < 0) {
             throw new IllegalArgumentException("Scores cannot be negative.");
         }

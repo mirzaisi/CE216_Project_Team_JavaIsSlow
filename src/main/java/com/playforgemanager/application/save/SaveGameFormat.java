@@ -7,9 +7,11 @@ public final class SaveGameFormat {
     public static final int CURRENT_VERSION = 1;
     public static final String FILE_EXTENSION = ".pfm-save.json";
 
+    // Prevents creating objects from this utility/configuration class.
     private SaveGameFormat() {
     }
 
+    // Documents which save fields are stored directly and which are rebuilt on load.
     public static List<SaveFieldPolicy> fieldPolicies() {
         return List.of(
                 new SaveFieldPolicy(
@@ -82,6 +84,8 @@ public final class SaveGameFormat {
                         PersistenceMode.STORED,
                         "Training choice is part of weekly planning and should survive a save."
                 ),
+
+                // These fields are intentionally rebuilt from saved data instead of stored directly.
                 new SaveFieldPolicy(
                         "session.activeSport",
                         PersistenceMode.RECOMPUTED,
@@ -115,6 +119,7 @@ public final class SaveGameFormat {
         );
     }
 
+    // Provides a minimal valid save structure for examples, templates, or testing.
     public static SaveGameDocument emptyDocumentTemplate() {
         return new SaveGameDocument(
                 FORMAT_ID,

@@ -11,9 +11,11 @@ public abstract class League {
     private final List<Fixture> fixtures;
 
     protected League(String name) {
+        // League names must always contain valid text.
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("League name cannot be blank.");
         }
+
         this.name = name;
         this.teams = new ArrayList<>();
         this.fixtures = new ArrayList<>();
@@ -33,19 +35,25 @@ public abstract class League {
 
     public void addTeam(Team team) {
         Objects.requireNonNull(team, "Team cannot be null.");
-        boolean duplicateId = teams.stream()
-                .anyMatch(existing -> existing.getId().equals(team.getId()));
-        if (duplicateId) {
-            throw new IllegalArgumentException("A team with the same id is already in the league.");
+
+        // Prevents duplicate teams with the same id from entering the league.
+        for (Team existing : teams) {
+            if (existing.getId().equals(team.getId())) {
+                throw new IllegalArgumentException("A team with the same id is already in the league.");
+            }
         }
+
         teams.add(team);
     }
 
     public void addFixture(Fixture fixture) {
         Objects.requireNonNull(fixture, "Fixture cannot be null.");
+
+        // A fixture can only be added if both teams already belong to this league.
         if (!teams.contains(fixture.getHomeTeam()) || !teams.contains(fixture.getAwayTeam())) {
             throw new IllegalArgumentException("Fixture teams must belong to the league.");
         }
+
         fixtures.add(fixture);
     }
 

@@ -17,6 +17,7 @@ import com.playforgemanager.application.save.SaveTrainingPlanData;
 import com.playforgemanager.core.Fixture;
 import com.playforgemanager.core.GameSession;
 import com.playforgemanager.core.Player;
+import com.playforgemanager.core.ProgressionState;
 import com.playforgemanager.core.Sport;
 import com.playforgemanager.core.Team;
 
@@ -36,28 +37,41 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
         Objects.requireNonNull(registration, "Sport registration cannot be null.");
 
         SaveSessionData savedSession = document.session();
+
         requireSport(savedSession.sportId());
 
         Sport sport = registration.getSportFactory().createSport();
+
         if (!(sport instanceof HandballSport)) {
             throw new IllegalStateException("Handball save requires a HandballSport registration.");
         }
 
         RestoredLeague restoredLeague = restoreLeague(savedSession.season());
         HandballSeason season = new HandballSeason(restoredLeague.league());
+
         season.refreshStandings(sport.getStandingsPolicy());
-        restoreSeasonProgress(season, savedSession.season().currentWeek(), savedSession.season().completed());
+
+        restoreSeasonProgress(
+                season,
+                savedSession.season().currentWeek(),
+                savedSession.season().completed()
+        );
 
         Team controlledTeam = restoredLeague.teamsById().get(savedSession.controlledTeamId());
+
         if (controlledTeam == null) {
             throw new IllegalArgumentException("Controlled team was not found in saved league.");
         }
+
+        ProgressionState progressionState = SaveRestoreSupport.requireProgressionState(
+                savedSession.progressionState()
+        );
 
         return new GameSession(
                 sport,
                 season,
                 controlledTeam,
-                SaveRestoreSupport.requireProgressionState(savedSession.progressionState()),
+                progressionState,
                 savedSession.sportId()
         );
     }
@@ -66,21 +80,28 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
         HandballLeague league = new HandballLeague(savedSeason.leagueName());
         Map<String, HandballTeam> teamsById = new LinkedHashMap<>();
 
+        // Restores teams first so fixtures can reference them safely.
         for (SaveTeamData savedTeam : savedSeason.teams()) {
             HandballTeam team = restoreTeam(savedTeam);
+
             if (teamsById.put(team.getId(), team) != null) {
                 throw new IllegalArgumentException("Duplicate saved team id: " + team.getId());
             }
+
             league.addTeam(team);
         }
 
+        // Restores fixtures and reconnects played matches when available.
         for (SaveFixtureData savedFixture : savedSeason.fixtures()) {
             HandballTeam homeTeam = requireTeam(teamsById, savedFixture.homeTeamId());
             HandballTeam awayTeam = requireTeam(teamsById, savedFixture.awayTeamId());
+
             Fixture fixture = new Fixture(savedFixture.week(), homeTeam, awayTeam);
 
             if (savedFixture.playedMatch() != null) {
-                fixture.attachPlayedMatch(restorePlayedMatch(savedFixture.playedMatch(), homeTeam, awayTeam));
+                fixture.attachPlayedMatch(
+                        restorePlayedMatch(savedFixture.playedMatch(), homeTeam, awayTeam)
+                );
             }
 
             league.addFixture(fixture);
@@ -93,11 +114,14 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
         HandballTeam team = new HandballTeam(savedTeam.id(), savedTeam.name());
         Map<String, HandballPlayer> playersById = new LinkedHashMap<>();
 
+        // Restores the roster before selected lineup data is rebuilt.
         for (SavePlayerData savedPlayer : savedTeam.players()) {
             HandballPlayer player = restorePlayer(savedPlayer);
+
             if (playersById.put(player.getId(), player) != null) {
                 throw new IllegalArgumentException("Duplicate saved player id: " + player.getId());
             }
+
             team.addPlayer(player);
         }
 
@@ -107,11 +131,14 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
 
         if (savedTeam.selectedLineup() != null) {
             HandballLineup lineup = restoreLineup(savedTeam.selectedLineup(), playersById);
+
             team.assignLineup(lineup);
         }
+
         if (savedTeam.selectedTactic() != null) {
             team.assignTactic(restoreTactic(savedTeam.selectedTactic()));
         }
+
         if (savedTeam.selectedTrainingPlan() != null) {
             team.assignTrainingPlan(restoreTrainingPlan(savedTeam.selectedTrainingPlan()));
         }
@@ -121,53 +148,99 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
 
     private HandballPlayer restorePlayer(SavePlayerData savedPlayer) {
         Map<String, String> properties = SaveRestoreSupport.propertyMap(savedPlayer.properties());
+
+        String positionValue = SaveRestoreSupport.requireString(properties, "position", SPORT);
+        HandballPosition position = SaveRestoreSupport.requireEnum(
+                HandballPosition.class,
+                positionValue,
+                SPORT
+        );
+
+        HandballAttributeProfile attributeProfile = new HandballAttributeProfile(
+                SaveRestoreSupport.requireInt(properties, "attributeProfile.shooting", SPORT),
+                SaveRestoreSupport.requireInt(properties, "attributeProfile.defense", SPORT),
+                SaveRestoreSupport.requireInt(properties, "attributeProfile.passing", SPORT),
+                SaveRestoreSupport.requireInt(properties, "attributeProfile.speed", SPORT),
+                SaveRestoreSupport.requireInt(properties, "attributeProfile.reflexes", SPORT)
+        );
+
         HandballPlayer player = new HandballPlayer(
                 savedPlayer.id(),
                 savedPlayer.name(),
-                SaveRestoreSupport.requireEnum(HandballPosition.class, SaveRestoreSupport.requireString(properties, "position", SPORT), SPORT),
-                new HandballAttributeProfile(
-                        SaveRestoreSupport.requireInt(properties, "attributeProfile.shooting", SPORT),
-                        SaveRestoreSupport.requireInt(properties, "attributeProfile.defense", SPORT),
-                        SaveRestoreSupport.requireInt(properties, "attributeProfile.passing", SPORT),
-                        SaveRestoreSupport.requireInt(properties, "attributeProfile.speed", SPORT),
-                        SaveRestoreSupport.requireInt(properties, "attributeProfile.reflexes", SPORT)
-                )
+                position,
+                attributeProfile
         );
 
+        // Restores injury duration first, otherwise restores the saved availability flag.
         if (savedPlayer.injuryMatchesRemaining() > 0) {
             player.injureForMatches(savedPlayer.injuryMatchesRemaining());
         } else {
             player.setAvailable(savedPlayer.available());
         }
+
         return player;
     }
 
     private HandballCoach restoreCoach(SaveCoachData savedCoach) {
         Map<String, String> properties = SaveRestoreSupport.propertyMap(savedCoach.properties());
+
+        String specializationValue = SaveRestoreSupport.requireString(
+                properties,
+                "specialization",
+                SPORT
+        );
+        HandballCoachSpecialization specialization = SaveRestoreSupport.requireEnum(
+                HandballCoachSpecialization.class,
+                specializationValue,
+                SPORT
+        );
+        int coachingRating = SaveRestoreSupport.requireInt(
+                properties,
+                "coachingRating",
+                SPORT
+        );
+
         return new HandballCoach(
                 savedCoach.id(),
                 savedCoach.name(),
                 savedCoach.role(),
-                SaveRestoreSupport.requireEnum(HandballCoachSpecialization.class, SaveRestoreSupport.requireString(properties, "specialization", SPORT), SPORT),
-                SaveRestoreSupport.requireInt(properties, "coachingRating", SPORT)
+                specialization,
+                coachingRating
         );
     }
 
-    private HandballMatch restorePlayedMatch(SavePlayedMatchData savedMatch, HandballTeam homeTeam, HandballTeam awayTeam) {
+    private HandballMatch restorePlayedMatch(
+            SavePlayedMatchData savedMatch,
+            HandballTeam homeTeam,
+            HandballTeam awayTeam
+    ) {
         HandballMatch match = new HandballMatch(homeTeam, awayTeam);
-        match.setHomeSetup(restoreLineup(savedMatch.homeLineup(), playersById(homeTeam)), restoreTactic(savedMatch.homeTactic()));
-        match.setAwaySetup(restoreLineup(savedMatch.awayLineup(), playersById(awayTeam)), restoreTactic(savedMatch.awayTactic()));
+
+        match.setHomeSetup(
+                restoreLineup(savedMatch.homeLineup(), playersById(homeTeam)),
+                restoreTactic(savedMatch.homeTactic())
+        );
+        match.setAwaySetup(
+                restoreLineup(savedMatch.awayLineup(), playersById(awayTeam)),
+                restoreTactic(savedMatch.awayTactic())
+        );
         match.setResult(savedMatch.homeScore(), savedMatch.awayScore());
+
         return match;
     }
 
-    private HandballLineup restoreLineup(SaveLineupData savedLineup, Map<String, HandballPlayer> playersById) {
+    private HandballLineup restoreLineup(
+            SaveLineupData savedLineup,
+            Map<String, HandballPlayer> playersById
+    ) {
         List<HandballPlayer> starters = new ArrayList<>();
+
         for (String playerId : savedLineup.selectedPlayerIds()) {
             starters.add(requirePlayer(playersById, playerId));
         }
 
         List<HandballPlayer> bench = new ArrayList<>();
+
         for (String playerId : savedLineup.reservePlayerIds()) {
             bench.add(requirePlayer(playersById, playerId));
         }
@@ -177,10 +250,15 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
 
     private HandballTactic restoreTactic(SaveTacticData savedTactic) {
         Map<String, String> properties = SaveRestoreSupport.propertyMap(savedTactic.properties());
+
         return new HandballTactic(
                 savedTactic.name(),
                 SaveRestoreSupport.requireString(properties, "shape", SPORT),
-                SaveRestoreSupport.requireEnum(HandballTactic.Tempo.class, SaveRestoreSupport.requireString(properties, "tempo", SPORT), SPORT),
+                SaveRestoreSupport.requireEnum(
+                        HandballTactic.Tempo.class,
+                        SaveRestoreSupport.requireString(properties, "tempo", SPORT),
+                        SPORT
+                ),
                 SaveRestoreSupport.requireInt(properties, "pressureLevel", SPORT),
                 SaveRestoreSupport.requireInt(properties, "transitionSpeed", SPORT)
         );
@@ -188,6 +266,7 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
 
     private HandballTrainingPlan restoreTrainingPlan(SaveTrainingPlanData savedPlan) {
         Map<String, String> properties = SaveRestoreSupport.propertyMap(savedPlan.properties());
+
         return new HandballTrainingPlan(
                 savedPlan.focus(),
                 savedPlan.intensity(),
@@ -201,9 +280,12 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
         if (savedWeek < 1) {
             throw new IllegalArgumentException("Saved current week must be at least 1.");
         }
+
+        // Advances only through season state, without recomputing matches or training.
         while (season.getCurrentWeek() < savedWeek && !season.isCompleted()) {
             season.advanceWeek();
         }
+
         if (completed && !season.isCompleted()) {
             while (!season.isCompleted()) {
                 season.advanceWeek();
@@ -213,28 +295,35 @@ public class HandballSaveGameRestorer implements SaveGameRestorer {
 
     private Map<String, HandballPlayer> playersById(HandballTeam team) {
         Map<String, HandballPlayer> players = new LinkedHashMap<>();
+
         for (Player player : team.getRoster()) {
             if (!(player instanceof HandballPlayer handballPlayer)) {
                 throw new IllegalArgumentException("Handball team contains a non-handball player.");
             }
+
             players.put(handballPlayer.getId(), handballPlayer);
         }
+
         return players;
     }
 
     private HandballTeam requireTeam(Map<String, HandballTeam> teamsById, String teamId) {
         HandballTeam team = teamsById.get(teamId);
+
         if (team == null) {
             throw new IllegalArgumentException("Saved fixture references missing team: " + teamId);
         }
+
         return team;
     }
 
     private HandballPlayer requirePlayer(Map<String, HandballPlayer> playersById, String playerId) {
         HandballPlayer player = playersById.get(playerId);
+
         if (player == null) {
             throw new IllegalArgumentException("Saved lineup references missing player: " + playerId);
         }
+
         return player;
     }
 
