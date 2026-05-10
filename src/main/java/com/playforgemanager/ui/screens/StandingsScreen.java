@@ -43,7 +43,7 @@ public class StandingsScreen implements UiScreen {
         table.getColumns().add(TableColumns.integer("A", StandingsRowView::scoresAgainst));
         table.getColumns().add(TableColumns.integer("Diff", StandingsRowView::scoreDifference));
         table.getColumns().add(TableColumns.integer("Pts", StandingsRowView::points));
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setPrefHeight(520);
 
         VBox card = new VBox(12, header, subtitle, table);

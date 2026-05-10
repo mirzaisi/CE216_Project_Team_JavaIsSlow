@@ -130,7 +130,7 @@ public class TacticsLineupScreen implements UiScreen {
         table.getColumns().add(TableColumns.string("Role", LineupSlotView::roleLabel));
         table.getColumns().add(TableColumns.string("Player", LineupSlotView::playerName));
         table.getColumns().add(TableColumns.string("Status", slot -> slot.available() ? "Available" : "Out"));
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setPrefHeight(360);
         return table;
     }

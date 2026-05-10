@@ -13,7 +13,8 @@ import java.util.List;
 import java.util.Objects;
 
 public class FootballWeekProgressionStrategy implements WeekProgressionStrategy {
-    private final FootballTrainingEffectService trainingEffectService = new FootballTrainingEffectService();
+    private final FootballTrainingEffectService trainingEffectService =
+            new FootballTrainingEffectService();
 
     @Override
     public WeekProgressionContext createContext(GameSession session) {
@@ -41,18 +42,20 @@ public class FootballWeekProgressionStrategy implements WeekProgressionStrategy 
     @Override
     public void applyTraining(GameSession session, WeekProgressionContext context) {
         FootballSeason season = requireSeason(session);
+        WeekProgressionContext validatedContext =
+                Objects.requireNonNull(context, "Week progression context cannot be null.");
 
         // Prevents training from being applied once any fixture in the week is already played.
-        for (Fixture fixture : context.getScheduledFixtures()) {
+        for (Fixture fixture : validatedContext.getScheduledFixtures()) {
             if (fixture.isPlayed()) {
                 return;
             }
         }
 
-        Sport sport = Objects.requireNonNull(session, "Game session cannot be null.").getActiveSport();
+        Sport sport = Objects.requireNonNull(session.getActiveSport(), "Active sport cannot be null.");
         FootballRuleset ruleset = requireFootballRuleset(sport);
 
-        // Applies weekly football training to every team in the league.
+        // Applies weekly football training once to every team in the league.
         for (Team team : season.getLeague().getTeams()) {
             FootballTeam footballTeam = requireFootballTeam(team);
 
@@ -67,35 +70,43 @@ public class FootballWeekProgressionStrategy implements WeekProgressionStrategy 
     @Override
     public void prepareMatches(GameSession session, WeekProgressionContext context) {
         FootballSeason season = requireSeason(session);
-        Sport sport = Objects.requireNonNull(session, "Game session cannot be null.").getActiveSport();
+        WeekProgressionContext validatedContext =
+                Objects.requireNonNull(context, "Week progression context cannot be null.");
+        Sport sport = Objects.requireNonNull(session.getActiveSport(), "Active sport cannot be null.");
 
         // Creates and prepares matches for all unplayed fixtures in the week.
-        for (Fixture fixture : context.getScheduledFixtures()) {
+        for (Fixture fixture : validatedContext.getScheduledFixtures()) {
             if (fixture.isPlayed()) {
                 continue;
             }
 
-            Match match = new FootballMatch(fixture.getHomeTeam(), fixture.getAwayTeam());
+            Match match = new FootballMatch(
+                    fixture.getHomeTeam(),
+                    fixture.getAwayTeam()
+            );
 
             season.prepareMatch(match, sport);
-            context.addPreparedMatch(fixture, match);
+            validatedContext.addPreparedMatch(fixture, match);
         }
     }
 
     @Override
     public void simulateMatches(GameSession session, WeekProgressionContext context) {
         GameSession validatedSession = Objects.requireNonNull(session, "Game session cannot be null.");
-        Sport sport = validatedSession.getActiveSport();
+        WeekProgressionContext validatedContext =
+                Objects.requireNonNull(context, "Week progression context cannot be null.");
+
+        Sport sport = Objects.requireNonNull(validatedSession.getActiveSport(), "Active sport cannot be null.");
         League league = validatedSession.getCurrentSeason().getLeague();
 
         // Simulates each prepared match and records its result in the league standings.
-        for (Fixture fixture : context.getScheduledFixtures()) {
+        for (Fixture fixture : validatedContext.getScheduledFixtures()) {
             if (fixture.isPlayed()) {
                 continue;
             }
 
             Match match = Objects.requireNonNull(
-                    context.getPreparedMatch(fixture),
+                    validatedContext.getPreparedMatch(fixture),
                     "Prepared match cannot be null."
             );
 
@@ -108,21 +119,26 @@ public class FootballWeekProgressionStrategy implements WeekProgressionStrategy 
     @Override
     public void refreshStandings(GameSession session, WeekProgressionContext context) {
         FootballSeason season = requireSeason(session);
+        Sport sport = Objects.requireNonNull(session.getActiveSport(), "Active sport cannot be null.");
 
-        season.refreshStandings(session.getActiveSport().getStandingsPolicy());
+        season.refreshStandings(sport.getStandingsPolicy());
     }
 
     @Override
     public void processPostMatch(GameSession session, WeekProgressionContext context) {
-        Sport sport = Objects.requireNonNull(session, "Game session cannot be null.").getActiveSport();
+        GameSession validatedSession = Objects.requireNonNull(session, "Game session cannot be null.");
+        WeekProgressionContext validatedContext =
+                Objects.requireNonNull(context, "Week progression context cannot be null.");
+
+        Sport sport = Objects.requireNonNull(validatedSession.getActiveSport(), "Active sport cannot be null.");
 
         // Applies post-match injuries to all matches prepared during this progression.
-        for (Match match : context.getPreparedMatches()) {
+        for (Match match : validatedContext.getPreparedMatches()) {
             sport.getInjuryPolicy().applyPostMatch(match);
         }
 
         // Recovers players after the week has finished processing.
-        for (Team team : session.getCurrentSeason().getLeague().getTeams()) {
+        for (Team team : validatedSession.getCurrentSeason().getLeague().getTeams()) {
             sport.getInjuryPolicy().recoverPlayers(team);
         }
     }

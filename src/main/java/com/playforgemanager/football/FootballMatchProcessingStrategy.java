@@ -23,13 +23,16 @@ public class FootballMatchProcessingStrategy implements MatchProcessingStrategy 
             throw new IllegalStateException("Fixture is already played.");
         }
 
-        Sport sport = session.getActiveSport();
-        League league = session.getCurrentSeason().getLeague();
+        Sport sport = Objects.requireNonNull(session.getActiveSport(), "Active sport cannot be null.");
+        League league = season.getLeague();
 
         // Applies weekly training before the first played fixture of the week.
         applyWeeklyTrainingIfNeeded(season, sport);
 
-        Match match = new FootballMatch(validatedFixture.getHomeTeam(), validatedFixture.getAwayTeam());
+        Match match = new FootballMatch(
+                validatedFixture.getHomeTeam(),
+                validatedFixture.getAwayTeam()
+        );
 
         // Prepares, simulates, records, and finalizes the football match.
         season.prepareMatch(match, sport);

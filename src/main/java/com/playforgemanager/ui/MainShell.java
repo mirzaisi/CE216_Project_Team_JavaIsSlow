@@ -5,6 +5,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -99,7 +100,15 @@ public final class MainShell {
         Text taglineText = new Text("Manager");
         taglineText.getStyleClass().add("brand-tag");
 
-        VBox brand = new VBox(2, logoText, taglineText);
+        VBox brand = new VBox(8);
+        var logo = UiAssets.loadLogo();
+        if (logo != null) {
+            ImageView logoView = new ImageView(logo);
+            logoView.setPreserveRatio(true);
+            logoView.setFitWidth(140);
+            brand.getChildren().add(logoView);
+        }
+        brand.getChildren().addAll(logoText, taglineText);
         brand.setPadding(new Insets(0, 0, 16, 0));
 
         box.getChildren().add(brand);
