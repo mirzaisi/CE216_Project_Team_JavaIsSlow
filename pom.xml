@@ -183,7 +183,10 @@
                             <mainClass>${exec.mainClass}</mainClass>
                             <javaOptions>
                                 <option>-Dfile.encoding=UTF-8</option>
+                                <option>--module-path=$APPDIR\\libs</option>
+                                <option>--add-modules=javafx.controls,javafx.graphics,javafx.base</option>
                             </javaOptions>
+                            <icon>${project.basedir}/src/main/resources/assets/images/playforge-logo.ico</icon>
                             <winShortcut>true</winShortcut>
                             <winMenu>true</winMenu>
                             <winDirChooser>true</winDirChooser>
