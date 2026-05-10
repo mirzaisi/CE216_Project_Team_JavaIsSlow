@@ -18,7 +18,6 @@ public class InMemoryAssetProvider implements AssetProvider {
 
     @Override
     public List<String> getFemaleNames() {
-        // Supplies default female names for generated teams and players.
         return List.of(
                 "Ece", "Zeynep", "Defne", "Elif", "Aylin", "Mina",
                 "Sena", "Yasemin", "Derya", "Selin", "Naz", "Irem"
@@ -27,7 +26,6 @@ public class InMemoryAssetProvider implements AssetProvider {
 
     @Override
     public List<String> getTeamNames() {
-        // Supplies default team names used by sport factories.
         return List.of(
                 "Red Hawks",
                 "Blue Wolves",

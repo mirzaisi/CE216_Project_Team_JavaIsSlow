@@ -11,12 +11,11 @@ public record SaveCoachData(
 ) {
 
     public SaveCoachData {
-        // Validates and cleans the basic coach text fields.
         id = requireText(id, "Coach id cannot be blank.");
         name = requireText(name, "Coach name cannot be blank.");
         role = requireText(role, "Coach role cannot be blank.");
 
-        // Stores coach properties as a safe unmodifiable list.
+     
         properties = List.copyOf(Objects.requireNonNull(properties, "Coach properties cannot be null."));
     }
 

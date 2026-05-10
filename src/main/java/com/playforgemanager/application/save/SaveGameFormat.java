@@ -11,7 +11,6 @@ public final class SaveGameFormat {
     private SaveGameFormat() {
     }
 
-    // Documents which save fields are stored directly and which are rebuilt on load.
     public static List<SaveFieldPolicy> fieldPolicies() {
         return List.of(
                 new SaveFieldPolicy(
